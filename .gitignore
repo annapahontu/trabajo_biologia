@@ -1,0 +1,14 @@
+code/R_LIBS/
+R_LIBS/
+software/
+results/*
+!results/.gitkeep
+
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.fdb_latexmk
+*.fls
+*.synctex.gz
