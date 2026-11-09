@@ -56,6 +56,11 @@ paso 01_descargar_hpo Rscript 01_descargar_hpo.R \
     --hpo "$HPO_ID" \
     --release "$HPO_RELEASE" \
     -o "$RES/data"
+    
+# Construir las redes de STRING y comparar umbrales
+paso 02_red_string Rscript 02_red_string.R \
+    -i "$RES/data/hpo_genes.tsv" \
+    -o "$RES/network"
 
 echo ""
 echo "=============================================="
