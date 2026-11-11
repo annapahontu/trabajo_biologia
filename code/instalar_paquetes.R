@@ -6,6 +6,10 @@ if (is.na(lib_r)) {
 }
 dir.create(lib_r, recursive = TRUE, showWarnings = FALSE)
 .libPaths(c(lib_r, .libPaths()))
+# evitar que BiocManager intente actualizar paquetes de Bioconductor
+if (requireNamespace("bspm", quietly = TRUE)) {
+  bspm::disable()
+}
 options(repos = c(CRAN = "https://cloud.r-project.org"), Ncpus = 2)
 
 paquetes_cran <- c("optparse", "httr", "jsonlite", "igraph", "BiocManager")
