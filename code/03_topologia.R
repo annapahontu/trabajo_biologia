@@ -14,7 +14,7 @@ option_list <- list(
   make_option(c("-s", "--semilla"), type = "integer", default = 123,
               help = "Semilla aleatoria para reproducibilidad [defecto: 123]"),
   make_option(c("-o", "--output"), type = "character", default = "../results/topology",
-              help = "Carpeta de salida")
+              help = "Carpeta de salida"),
   make_option(c("-g", "--genes"), type = "character", default = NULL,
               help = "Archivo con lista de genes semilla (un gen por línea)")
 )
@@ -26,10 +26,10 @@ if (is.null(opt$input)) {
 }
 
 set.seed(opt$semilla) # Establece la semilla para sample_gnm y rewire
-dir.create(opt$output, recursive = TRUE, showWarnings = FALSE)
+dir.create(opt$output, recursive = TRUE, showWarnings = FALSE) # Directorio de salida
 
 # 2. Cargar red e instanciar grafo igraph
-edges_df <- read.delim(opt$input, header = TRUE, stringsAsFactors = FALSE)
+edges_df <- read.csv2(opt$input,stringsAsFactors = FALSE)
 g <- igraph::graph_from_data_frame(edges_df, directed = FALSE)
 g <- igraph::simplify(g, remove.loops = TRUE, remove.multiple = TRUE)
 
@@ -97,7 +97,8 @@ plot(as.numeric(names(deg_freq)), as.numeric(deg_freq), log = "xy",
      xlab = "Grado (log)", ylab = "Frecuencia (log)", pch = 19, col = "darkblue")
 dev.off()
 
-# 6. Modelos Nulos (sample_gnm)
+# 6. Modelos Nulos: de dos formas
+# Con sample_gnm
 n_v <- igraph::gorder(g)
 n_e <- igraph::gsize(g)
 obs_trans <- igraph::transitivity(g, type = "global")
@@ -131,7 +132,7 @@ hist(null_mod, main = paste("Modularidad (p =", round(p_mod, 4), ")"), xlab = "M
 abline(v = obs_mod, col = "red", lwd = 2)
 dev.off()
 
-# Modelo Nulo 2: Preservando secuencia de grados (rewire)
+# Y preservando secuencia de grados (rewire)
 
 null_trans_rewire <- numeric(opt$n_perm)
 null_dist_rewire  <- numeric(opt$n_perm)
@@ -161,7 +162,8 @@ write.table(
   sep = "\t", row.names = FALSE, quote = FALSE
 )
 
-# 7. Disease Module Test
+# 7. Prueba del módulo de enfermedad (opcional, dado por el argumento -g)
+#Comprueba si los genes del fenotipo están más conectados entre sí en STRING que conjuntos aleatorios del mismo tamaño
 
 seed_genes <- NULL
 
@@ -222,12 +224,8 @@ simular_robustez <- function(graph, modo = "hub") {
   return(sizes / igraph::gorder(graph))
 }
 
-# Función para simular robustez con remoción aleatoria y promediar resultados
-simular_robustez_random_promedio <- function(
-    graph,
-    n_sim = 100
-) {
-
+# Función para simular robustez y promediar resultados
+simular_robustez_random_promedio <- function(graph, n_sim = 100) {
   n_nodes <- igraph::gorder(graph)
 
   mat_results <-matrix(0, nrow = n_sim, ncol = n_nodes)
