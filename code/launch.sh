@@ -62,6 +62,14 @@ paso 02_red_string Rscript 02_red_string.R \
     -i "$RES/data/hpo_genes.tsv" \
     -o "$RES/network"
 
+# Analizar topología de la red (de umbral 700)
+paso 03_topologia Rscript 03_topologia.R \
+    -i "$RES/network/umbral_700/aristas.csv" \
+    -m completo \
+    -n 1000 \
+    -s 123 \
+    -o "$RES/topology"
+
 echo ""
 echo "=============================================="
 echo " Análisis terminado en $((SECONDS / 60)) min $((SECONDS % 60)) s"
