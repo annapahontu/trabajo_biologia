@@ -12,7 +12,7 @@ if (requireNamespace("bspm", quietly = TRUE)) {
 }
 options(repos = c(CRAN = "https://cloud.r-project.org"), Ncpus = 2)
 
-paquetes_cran <- c("optparse", "httr", "jsonlite", "igraph", "BiocManager")
+paquetes_cran <- c("optparse", "httr", "jsonlite", "igraph", "BiocManager", "RColorBrewer", "dynamicTreeCut")
 paquetes_bioc <- c("STRINGdb")
 
 # TRUE si el paquete está instalado en nuestra carpeta
@@ -37,6 +37,18 @@ for (p in paquetes_cran) {
     stop("No se ha podido instalar ", p, ". Revisa la conexión a internet ",
          "y que estén instaladas las librerías del sistema del aviso de setup.sh")
   }
+}
+
+# instalar la última versión desde el archivo de CRAN de linkcomm para el paso 05
+url_linkcomm <- "https://cloud.r-project.org/src/contrib/Archive/linkcomm/linkcomm_1.0-14.tar.gz"
+if (instalado("linkcomm")) {
+  cat("linkcomm ya instalado\n")
+} else {
+  cat("Instalando linkcomm desde el archivo de CRAN\n")
+  install.packages(url_linkcomm, repos = NULL, type = "source", lib = lib_r)
+}
+if (!instalado("linkcomm")) {
+  stop("No se ha podido instalar linkcomm")
 }
 
 # Paquetes de Bioconductor
