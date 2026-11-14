@@ -34,8 +34,7 @@ for (p in paquetes_cran) {
 # install.packages() solo avisa si falla, así que lo comprobamos aquí
 for (p in paquetes_cran) {
   if (!instalado(p)) {
-    stop("No se ha podido instalar ", p, ". Revisa la conexión a internet ",
-         "y que estén instaladas las librerías del sistema del aviso de setup.sh")
+    stop("No se ha podido instalar ", p, ". Revisa la conexión a internet")
   }
 }
 
