@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 suppressPackageStartupMessages({
   library(optparse)
   library(igraph)
@@ -95,7 +96,7 @@ deg_freq <- table(degree_vals)
 plot(as.numeric(names(deg_freq)), as.numeric(deg_freq), log = "xy",
      main = paste("Log-Log (alpha =", round(fit_power$alpha, 2), ")"),
      xlab = "Grado (log)", ylab = "Frecuencia (log)", pch = 19, col = "darkblue")
-dev.off()
+invisible(dev.off())
 
 # 6. Modelos Nulos: de dos formas
 # Con sample_gnm
@@ -120,17 +121,28 @@ p_trans <- mean(null_trans >= obs_trans)
 p_dist <- mean(null_dist <= obs_dist)
 p_mod <- mean(null_mod >= obs_mod)
 
+# Texto del p-valor para los títulos. Con n permutaciones el mínimo que podemos ver es 1/n,
+# así que si sale 0 ponemos "p < 1/n" en vez de "p = 0"
+texto_p <- function(p, n_perm) {
+  if (p == 0) return(paste("p <", 1 / n_perm))
+  paste("p =", round(p, 4))
+}
+
 pdf(file.path(opt$output, "modelos_nulos_histogramas.pdf"), width = 9, height = 3)
 par(mfrow = c(1, 3))
-hist(null_trans, main = paste("Transitividad (p =", round(p_trans, 4), ")"), xlab = "Transitividad Nula", col = "gray90")
+
+hist(null_trans, main = paste0("Transitividad (", texto_p(p_trans, opt$n_perm), ")"), xlab = "Transitividad Nula", col = "gray90",
+     xlim = range(c(null_trans, obs_trans)))
 abline(v = obs_trans, col = "red", lwd = 2)
 
-hist(null_dist, main = paste("Distancia Media (p =", round(p_dist, 4), ")"), xlab = "Distancia Nula", col = "gray90")
+hist(null_dist, main = paste0("Distancia Media (", texto_p(p_dist, opt$n_perm), ")"), xlab = "Distancia Nula", col = "gray90",
+     xlim = range(c(null_dist, obs_dist)))
 abline(v = obs_dist, col = "red", lwd = 2)
 
-hist(null_mod, main = paste("Modularidad (p =", round(p_mod, 4), ")"), xlab = "Modularidad Nula", col = "gray90")
+hist(null_mod, main = paste0("Modularidad (", texto_p(p_mod, opt$n_perm), ")"), xlab = "Modularidad Nula", col = "gray90",
+     xlim = range(c(null_mod, obs_mod)))
 abline(v = obs_mod, col = "red", lwd = 2)
-dev.off()
+invisible(dev.off())
 
 # Y preservando secuencia de grados (rewire)
 
@@ -198,11 +210,12 @@ if (!is.null(seed_genes)) {
 
     pdf(file.path(opt$output, "disease_module_test.pdf"))
     hist(null_seed_lcc,
-      main = paste( "Disease Module Test (p =", round(p_val_disease_module, 4), ")"),
-      xlab = "LCC aleatoria", col = "gray90")
+      main = paste0("Disease Module Test (", texto_p(p_val_disease_module, opt$n_perm), ")"),
+      xlab = "LCC aleatoria", col = "gray90",
+      xlim = range(c(null_seed_lcc, obs_seed_lcc)))
 
     abline(v = obs_seed_lcc, col = "red", lwd = 2)
-    dev.off()
+    invisible(dev.off())
   }
 }
 
@@ -257,6 +270,6 @@ plot(seq(0, 1, length.out = length(frac_hubs)), frac_hubs, type = "l", col = "re
 lines(seq(0, 1, length.out = length(frac_random)), frac_random, col = "blue", lwd = 2, lty = 2)
 legend("topright", legend = c("Ataque a Hubs", "Remoción Aleatoria"),
        col = c("red", "blue"), lty = c(1, 2), lwd = 2)
-dev.off()
+invisible(dev.off())
 
 cat("Script 03_topologia.R completado con éxito.\n")
