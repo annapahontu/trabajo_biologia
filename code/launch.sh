@@ -79,6 +79,23 @@ paso 04_clustering Rscript 04_clustering.R \
     -s 123 \
     -o "$RES/clusters"
 
+# Topología y clustering de la red expandida (semillas + vecinos de STRING)
+paso 03_topologia_expandida Rscript 03_topologia.R \
+    -i "$RES/network/umbral_700/aristas_expandida.csv" \
+    -g "$RES/network/umbral_700/genes_semilla.txt" \
+    -m completo \
+    -n 1000 \
+    -s 123 \
+    -o "$RES/topology/expandida"
+
+paso 04_clustering_expandida Rscript 04_clustering.R \
+    -i "$RES/network/umbral_700/aristas_expandida.csv" \
+    -m louvain \
+    -r 1 \
+    -n 100 \
+    -s 123 \
+    -o "$RES/clusters/expandida"
+
 echo ""
 echo "=============================================="
 echo " Análisis terminado en $((SECONDS / 60)) min $((SECONDS % 60)) s"
