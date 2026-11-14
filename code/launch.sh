@@ -70,6 +70,15 @@ paso 03_topologia Rscript 03_topologia.R \
     -s 123 \
     -o "$RES/topology"
 
+# Detectar comunidades en la red (de umbral 700)
+paso 04_clustering Rscript 04_clustering.R \
+    -i "$RES/network/umbral_700/aristas.csv" \
+    -m louvain \
+    -r 1 \
+    -n 100 \
+    -s 123 \
+    -o "$RES/clusters"
+
 echo ""
 echo "=============================================="
 echo " Análisis terminado en $((SECONDS / 60)) min $((SECONDS % 60)) s"
