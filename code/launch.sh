@@ -79,6 +79,14 @@ paso 04_clustering Rscript 04_clustering.R \
     -s 123 \
     -o "$RES/clusters"
 
+# Comunidades de enlaces de la red semilla
+paso 05_comunidades_enlaces Rscript 05_comunidades_enlaces.R \
+    -i "$RES/network/umbral_700/aristas.csv" \
+    -s 123 \
+    --particion "$RES/clusters/particion_final.tsv" \
+    --metricas "$RES/topology/metricas_nodos.tsv" \
+    -o "$RES/clusters/enlaces"
+
 # Topología y clustering de la red expandida (semillas + vecinos de STRING)
 paso 03_topologia_expandida Rscript 03_topologia.R \
     -i "$RES/network/umbral_700/aristas_expandida.csv" \
@@ -95,6 +103,14 @@ paso 04_clustering_expandida Rscript 04_clustering.R \
     -n 100 \
     -s 123 \
     -o "$RES/clusters/expandida"
+
+paso 05_comunidades_enlaces_expandida Rscript 05_comunidades_enlaces.R \
+    -i "$RES/network/umbral_700/aristas_expandida.csv" \
+    -s 123 \
+    --nodos "$RES/network/umbral_700/nodos_expandida.csv" \
+    --particion "$RES/clusters/expandida/particion_final.tsv" \
+    --metricas "$RES/topology/expandida/metricas_nodos.tsv" \
+    -o "$RES/clusters/expandida/enlaces"
 
 echo ""
 echo "=============================================="
