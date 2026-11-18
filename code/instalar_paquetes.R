@@ -6,7 +6,8 @@ if (is.na(lib_r)) {
 }
 dir.create(lib_r, recursive = TRUE, showWarnings = FALSE)
 .libPaths(c(lib_r, .libPaths()))
-# evitar que BiocManager intente actualizar paquetes de Bioconductor
+
+# Desactivar bspm en esta sesión
 if (requireNamespace("bspm", quietly = TRUE)) {
   bspm::disable()
 }
