@@ -70,22 +70,24 @@ paso 03_topologia Rscript 03_topologia.R \
     -s 123 \
     -o "$RES/topology"
 
-# Detectar comunidades en la red (de umbral 700)
-paso 04_clustering Rscript 04_clustering.R \
-    -i "$RES/network/umbral_700/aristas.csv" \
-    -m louvain \
-    -r 1 \
-    -n 100 \
-    -s 123 \
-    -o "$RES/clusters"
+# Detectar comunidades en la red de cada umbral, para ver en cuál se distinguen mejor los clusters
+for umbral in 400 700 900; do
+    paso "04_clustering_umbral_$umbral" Rscript 04_clustering.R \
+        -i "$RES/network/umbral_$umbral/aristas.csv" \
+        -m louvain \
+        -r 1 \
+        -n 100 \
+        -s 123 \
+        -o "$RES/clusters/umbral_$umbral"
+done
 
 # Comunidades de enlaces de la red semilla
 paso 05_comunidades_enlaces Rscript 05_comunidades_enlaces.R \
     -i "$RES/network/umbral_700/aristas.csv" \
     -s 123 \
-    --particion "$RES/clusters/particion_final.tsv" \
+    --particion "$RES/clusters/umbral_700/particion_final.tsv" \
     --metricas "$RES/topology/metricas_nodos.tsv" \
-    -o "$RES/clusters/enlaces"
+    -o "$RES/clusters/umbral_700/enlaces"
 
 echo ""
 echo "=============================================="
