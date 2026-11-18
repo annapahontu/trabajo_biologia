@@ -62,16 +62,16 @@ paso 02_red_string Rscript 02_red_string.R \
     -i "$RES/data/hpo_genes.tsv" \
     -o "$RES/network"
 
-# Analizar topología de la red (de umbral 700)
-paso 03_topologia Rscript 03_topologia.R \
-    -i "$RES/network/umbral_700/aristas.csv" \
-    -m completo \
-    -n 1000 \
-    -s 123 \
-    -o "$RES/topology"
-
-# Detectar comunidades en la red de cada umbral, para ver en cuál se distinguen mejor los clusters
+# Topología, clustering y comunidades de enlaces de la red de cada umbral,
+# para ver en cuál se distinguen mejor los clusters
 for umbral in 400 700 900; do
+    paso "03_topologia_umbral_$umbral" Rscript 03_topologia.R \
+        -i "$RES/network/umbral_$umbral/aristas.csv" \
+        -m completo \
+        -n 1000 \
+        -s 123 \
+        -o "$RES/topology/umbral_$umbral"
+
     paso "04_clustering_umbral_$umbral" Rscript 04_clustering.R \
         -i "$RES/network/umbral_$umbral/aristas.csv" \
         -m louvain \
@@ -79,15 +79,14 @@ for umbral in 400 700 900; do
         -n 100 \
         -s 123 \
         -o "$RES/clusters/umbral_$umbral"
-done
 
-# Comunidades de enlaces de la red semilla
-paso 05_comunidades_enlaces Rscript 05_comunidades_enlaces.R \
-    -i "$RES/network/umbral_700/aristas.csv" \
-    -s 123 \
-    --particion "$RES/clusters/umbral_700/particion_final.tsv" \
-    --metricas "$RES/topology/metricas_nodos.tsv" \
-    -o "$RES/clusters/umbral_700/enlaces"
+    paso "05_comunidades_enlaces_umbral_$umbral" Rscript 05_comunidades_enlaces.R \
+        -i "$RES/network/umbral_$umbral/aristas.csv" \
+        -s 123 \
+        --particion "$RES/clusters/umbral_$umbral/particion_final.tsv" \
+        --metricas "$RES/topology/umbral_$umbral/metricas_nodos.tsv" \
+        -o "$RES/clusters/umbral_$umbral/enlaces"
+done
 
 echo ""
 echo "=============================================="
