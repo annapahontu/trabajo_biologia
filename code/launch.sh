@@ -62,7 +62,7 @@ paso 02_red_string Rscript 02_red_string.R \
     -i "$RES/data/hpo_genes.tsv" \
     -o "$RES/network"
 
-# Topología, clustering y comunidades de enlaces de la red de cada umbral,
+# Topología, clustering, comunidades de enlaces y distancias entre clusters de la red de cada umbral,
 # para ver en cuál se distinguen mejor los clusters
 for umbral in 400 700 900; do
     paso "03_topologia_umbral_$umbral" Rscript 03_topologia.R \
@@ -86,6 +86,14 @@ for umbral in 400 700 900; do
         --particion "$RES/clusters/umbral_$umbral/particion_final.tsv" \
         --metricas "$RES/topology/umbral_$umbral/metricas_nodos.tsv" \
         -o "$RES/clusters/umbral_$umbral/enlaces"
+
+    paso "07_distancias_clusters_umbral_$umbral" Rscript 07_distancias_clusters.R \
+        -p "$RES/clusters/umbral_$umbral/particion_final.tsv" \
+        -g "$RES/data/hpo_genes.tsv" \
+        -u $umbral \
+        --string_dir "$RES/network/string_data" \
+        -d 3 \
+        -o "$RES/clusters/umbral_$umbral/distancias"
 done
 
 paso 06_ora Rscript 06_ora.R \
