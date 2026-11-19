@@ -15,6 +15,7 @@ options(repos = c(CRAN = "https://cloud.r-project.org"), Ncpus = 2)
 
 paquetes_cran <- c("optparse", "httr", "jsonlite", "igraph", "BiocManager", "RColorBrewer", "dynamicTreeCut")
 paquetes_bioc <- c("STRINGdb")
+paquetes_ORA <- c("fgsea", "treeio", "DOSE", "ggtree","clusterProfiler", "org.Hs.eg.db", "enrichplot")
 
 # TRUE si el paquete está instalado en nuestra carpeta
 instalado <- function(p) {
@@ -68,3 +69,19 @@ for (p in paquetes_bioc) {
 }
 
 cat("Paquetes de R listos\n")
+
+# Paquetes para el análisis de ORA
+for (p in paquetes_ORA) {
+  if (instalado(p)) {
+    cat(p, "ya instalado\n")
+  } else {
+    cat("Instalando", p, "\n") 
+    BiocManager::install(p, lib = lib_r, update = FALSE, ask = FALSE)
+  }
+}
+
+for (p in paquetes_ORA) {
+  if (!instalado(p)) {
+    stop("No se ha podido instalar ", p)
+  }
+}

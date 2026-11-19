@@ -88,6 +88,11 @@ for umbral in 400 700 900; do
         -o "$RES/clusters/umbral_$umbral/enlaces"
 done
 
+paso 06_ora Rscript 06_ora.R \
+    -i "$RES/data" \
+    -o "$RES/ora" \
+    -s 123
+
 echo ""
 echo "=============================================="
 echo " Análisis terminado en $((SECONDS / 60)) min $((SECONDS % 60)) s"
