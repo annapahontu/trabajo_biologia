@@ -76,8 +76,14 @@ for (p in paquetes_ORA) {
     cat(p, "ya instalado\n")
   } else {
     cat("Instalando", p, "\n") 
-    BiocManager::install(p, lib = lib_r, update = FALSE, ask = FALSE)
-  }
+    BiocManager::install(
+      p,
+      lib = lib_r,
+      update = FALSE,
+      ask = FALSE,
+      force = TRUE
+    )
+  } 
 }
 
 for (p in paquetes_ORA) {
