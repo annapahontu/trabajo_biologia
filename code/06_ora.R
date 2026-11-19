@@ -63,8 +63,8 @@ leer_tabla <- function(archivo, columnas, sep, permitir_vacia = FALSE){
   }
 
   for (col in columnas) {
-    if (any(is.na(tabla[[col]])) || any(trims(tabla[[col]]) == "")){
-      stop("Hay valores ausentes en ", columna, "del archivo", archivo)
+    if (any(is.na(tabla[[col]])) || any(trimws(tabla[[col]]) == "")){
+      stop("Hay valores ausentes en ", col, "del archivo", archivo)
     }
   }
 
@@ -105,7 +105,7 @@ if (length(fuera_fondo) > 0){
 redes <- list()
 
 for(umbral in umbrales){
-  carpeta_red <- file.path(carpeta_results, "network", paste0("umbra-_", umbral))
+  carpeta_red <- file.path(carpeta_results, "network", paste0("umbral-_", umbral))
   carpeta_cluster <- file.path(carpeta_results, "clusters", paste0("umbral_", umbral))
   nodos <- leer_tabla(file.path(carpeta_red, "nodos.csv"), "gene_symbol", ";", TRUE)$gene_symbol
     no_mapeados <- leer_tabla(file.path(carpeta_red, "genes_no_mapeados.csv"),
@@ -149,7 +149,7 @@ hacer_ora <- function(genes, universo, carpeta, titulo){
   cat("\n", titulo, "\n", sep= "")
   cat("Genes de entrada: ", length(genes), "| Fondo proporcionado: ", length(universo), "\n")
 
-  resultados <- tryCatch(
+  resultado <- tryCatch(
     enrichGO(
       gene          = genes,        # Genes of interest
       universe      = universo,    # Background: all genes measured in the experiment
@@ -165,7 +165,7 @@ hacer_ora <- function(genes, universo, carpeta, titulo){
     }
   )
 
-  tabla_resultado_ORA <- data.frame(
+  tabla <- data.frame(
     ID = character(),
     Description = character(),
     GeneRatio = character(), 
@@ -178,7 +178,7 @@ hacer_ora <- function(genes, universo, carpeta, titulo){
   estado <- "sin_resultado_ORA"
   if (!is.null(resultado)){
     tabla <- as.data.frame(resultado)
-    estado z- if (nrow(tabla) > 0) "con_terminos_significativos" else "sin_terminos_significativos"
+    estado <- if (nrow(tabla) > 0) "con_terminos_significativos" else "sin_terminos_significativos"
   }
 
   write.csv2(tabla, file.path(carpeta, "ORA_BP.csv"), row.names = FALSE)
