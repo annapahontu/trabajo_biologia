@@ -9,12 +9,11 @@ for (p in paquetes) {
 }
 
 library(optparse)
-library(BiocManager)
 library(clusterProfiler)
 library(org.Hs.eg.db)
 library(enrichplot)
 
-# Argumentos
+# 1. Argumentos
 option_list <- list(
     make_option(c("-i", "--input"), type = "character", default = NULL,
                 help = "Carpeta con los resultados del 01: results/data"),
@@ -26,8 +25,8 @@ option_list <- list(
 opt <- parse_args(OptionParser(option_list = option_list))
 
 
-if (is.null(opt$input)) {
-  stop("Error: Debe especificar un archivo de entrada con -i o --input")
+if (is.null(opt$input) || is.null(opt$output)) {
+  stop("Uso: Rscript code/06_ora.R -i results/data -o results/ora")
 }
 
 if (!dir.exists(opt$input)){
@@ -40,9 +39,9 @@ if (is.na(opt$semilla)) {
 }
 
 set.seed(opt$semilla) # Establece la semilla para sample_gnm y rewire
-# dir.create(opt$output, recursive = TRUE, showWarnings = FALSE) # Directorio de salida
 
-# obtención de tablas de entrada
+
+# 2. Obtención de tablas de entrada
 carpeta_results <- dirname(normalizePath(opt$input))
 umbrales <- c(400, 700, 900)
 
@@ -73,14 +72,14 @@ leer_tabla <- function(archivo, columnas, sep, permitir_vacia = FALSE){
 
 cat("\n=== Paso 06: enriquecimiento funcional Gene Ontology - Biological Process ===\n")
 cat("comprobando los resultados de los pasos 01, 02 y 04...\n")
-hpo <- leer_tabla(file.path(opt$input), "hpo_genes.tsv"), c("ncbi_id", "gene_symbol"), "\t")
+hpo <- leer_tabla(file.path(opt$input, "hpo_genes.tsv"), c("ncbi_id", "gene_symbol"), "\t")
 
 hpo <- unique(hpo[, c("ncbi_id", "gene_symbol")])
 if (anyDuplicated(hpo$gene_symbol)|| anyDuplicated(hpo$ncbi_id)){
   stop("Hay identificadores o símbolos repetidos con asociaciones distintas en hpo_genes.tsv.")
 }
 
-# Definición del universo de genes a partir de genes_fondo_hpo.txt
+# 3. Definición del universo de genes a partir de genes_fondo_hpo.txt
 
 archivo_fondo <- file.path(opt$input, "genes_fondo_hpo.txt")
 if (!file.exists(archivo_fondo)){
@@ -105,7 +104,7 @@ if (length(fuera_fondo) > 0){
 redes <- list()
 
 for(umbral in umbrales){
-  carpeta_red <- file.path(carpeta_results, "network", paste0("umbral-_", umbral))
+  carpeta_red <- file.path(carpeta_results, "network", paste0("umbral_", umbral))
   carpeta_cluster <- file.path(carpeta_results, "clusters", paste0("umbral_", umbral))
   nodos <- leer_tabla(file.path(carpeta_red, "nodos.csv"), "gene_symbol", ";", TRUE)$gene_symbol
     no_mapeados <- leer_tabla(file.path(carpeta_red, "genes_no_mapeados.csv"),
@@ -142,8 +141,8 @@ cat("Genes HPO de entrada: ", nrow(hpo), "\n")
 cat("Genes en el fondo HPO proporcionado: ", length(fondo), "\n")
 cat("Se analizarán las redes originales de los umbrales: ", umbrales, "\n")
 
-
-# ORA. Función para el enriquecimiento funcional 
+# 4. Sobrerepresentación con ORA 
+# Función ORA
 hacer_ora <- function(genes, universo, carpeta, titulo){
   dir.create(carpeta, recursive= TRUE, showWarnings = FALSE)
   cat("\n", titulo, "\n", sep= "")
@@ -158,6 +157,7 @@ hacer_ora <- function(genes, universo, carpeta, titulo){
       ont           = "BP",               # Ontology (BP: biological processes)
       pAdjustMethod = "BH",               # Method for p-value adjustment
       pvalueCutoff  = 0.05,               # Significance threshold
+      qvalueCutoff  = 0.2,
       readable      = TRUE                # Show gene symbols instead of Entrez IDs
     ),
     error = function(e) {
@@ -184,13 +184,7 @@ hacer_ora <- function(genes, universo, carpeta, titulo){
   write.csv2(tabla, file.path(carpeta, "ORA_BP.csv"), row.names = FALSE)
 
   archivo_pdf <- file.path(carpeta, "plot_ORA.pdf")
-  if (!file.exists(archivo_pdf) && !file.remove(archivo_pdf)){
-    stop("No se puede reemplazar la figura: ", archivo_pdf)
-  }
-  write.csv2(tabla, file.path(carpeta, "ORA_BP.csv"), row.names = FALSE)
-
-  archivo_pdf <- file.path(carpeta, "plot_ORA.pdf")
-  if (!file.exists(archivo_pdf) && !file.remove(archivo_pdf)){
+  if (file.exists(archivo_pdf) && !file.remove(archivo_pdf)){
     stop("No se puede reemplazar la figura: ", archivo_pdf)
   }
 
@@ -227,9 +221,78 @@ hacer_ora <- function(genes, universo, carpeta, titulo){
 }
 
 
+# Análisis ORA global
+ora_global <- hacer_ora(
+  genes = hpo$gene_symbol,
+  universo = fondo,
+  carpeta = opt$output,
+  titulo = "ORA global HPO - Gene Ontology (BP)"
+)
 
-#grafica_ORA <- dotplot(go_simple, showCategory = 10, title = "GO Enrichment (BP)")
+# Análisis ORA por comunidades de cada umbral
+for (umbral in umbrales){
+  red <- redes[[as.character(umbral)]]
+  carpeta_umbral <- file.path(opt$output, paste0("umbral_", umbral))
+  dir.create(carpeta_umbral, recursive = TRUE, showWarnings = FALSE)
 
-pdf(file.path(opt$output, "plot_ORA.pdf"), width = 9, height = 9)
-dotplot(go_simple, showCategory = 10, title = "GO Enrichment (BP)")
-invisible(dev.off())
+  # agrupacion de genes por comunidad
+  genes_clusters <- split(
+    red$particion$gene,
+    red$particion$cluster
+  )
+
+  cat("\n=== ORA por comunidades: umbral", umbral, "===\n")
+  cat("Genes de la red usados como fondo:", length(red$nodos), "\n")
+  cat("Número de comunidades:", length(genes_clusters), "\n")
+  cat("Genes de cada comunidad:\n")
+  print(genes_clusters)
+
+  resumen_comunidades <- data.frame(
+    cluster = character(),
+    n_genes = integer(), 
+    estado_ORA = character(),
+    n_terminos = integer()
+  )
+
+  # ora por comunidad
+  for (i in names(genes_clusters)){
+    carpeta_ora_cluster <- file.path(
+      carpeta_umbral,
+      paste0("cluster_", i)
+    )
+
+    ora_cluster <- hacer_ora(
+      genes = genes_clusters[[i]],
+      universo = red$nodos,
+      carpeta = carpeta_ora_cluster,
+      titulo = paste("ORA comunidad ",i,"- umbral", umbral, "- Gene Ontology (BP)")
+    )
+
+    # En caso de que no se encuentren resultados de ora
+    n_terminos <- NA_integer_
+    if (ora_cluster$estado != "sin_resultado_ORA"){
+      n_terminos <- nrow(ora_cluster$tabla)
+    }
+
+    resumen_comunidades <- rbind(
+      resumen_comunidades,
+      data.frame(
+        cluster = i,
+        n_genes = length(genes_clusters[[i]]),
+        estado_ORA = ora_cluster$estado,
+        n_terminos = n_terminos
+      )
+    )
+  }
+
+  write.csv2(
+    resumen_comunidades,
+    file.path(carpeta_umbral, "resumen_comunidades.csv"),
+    row.names = FALSE
+  )
+
+  cat("\nResumen del umbral", umbral, ":\n")
+  print(resumen_comunidades, row.names = FALSE)
+}
+
+cat("\nResultados del ORA guardados en:", opt$output, "\n")
