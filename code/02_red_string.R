@@ -10,6 +10,8 @@ option_list <- list(
                 help = "Entrada del proyecto: results/data/hpo_genes.tsv (generada por el paso 01)"),
     make_option(c("-o", "--output"), type = "character", default = NULL,
                 help = "Salida del proyecto: results/network (redes, tablas y descargas de STRING)"),
+    make_option(c("--expandir"), type = "logical", default = FALSE,
+                help = "TRUE para construir también la red expandida [defecto: FALSE]"),
     make_option(c("--umbral_final"), type = "integer", default = 700,
                 help = "Umbral de STRING con el que se construye la red expandida [defecto: 700]"),
     make_option(c("--min_semillas"), type = "integer", default = 2,
@@ -191,10 +193,10 @@ for (umbral in umbrales){
     cat("Nodos:", vcount(g_umbral), "Aristas:", ecount(g_umbral), "\n")
     cat("Componente mayor: ", componente_mayor, "\n")    
 
-    # 8. Red expandida (solo con el umbral final)
+    # 8. Red expandida (solo con el umbral final y si se pide con --expandir)
     # Con solo las semillas muchos genes quedan aislados, así que añadimos vecinos de STRING
     # que interaccionan con varias semillas a la vez
-    if (umbral == opt$umbral_final) {
+    if (opt$expandir && umbral == opt$umbral_final) {
         cat("\n--- Red expandida (umbral", umbral, ") ---\n")
 
         # get_interactions solo da aristas entre las proteínas que le pasamos,
