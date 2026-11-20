@@ -1,7 +1,6 @@
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages({
     library(optparse)
-    library(STRINGdb)
     library(igraph)
 })
 
@@ -13,8 +12,8 @@ option_list <- list(
                 help = "Genes semilla del paso 01: results/data/hpo_genes.tsv"),
     make_option(c("-u", "--umbral"), type = "integer", default = 700,
                 help = "Umbral de STRING [defecto: 700]"),
-    make_option(c("--string_dir"), type = "character", default = NULL,
-                help = "Carpeta con los archivos de STRING del paso 02: results/network/string_data"),
+    make_option(c("-r", "--red"), type = "character", default = NULL,
+                help = "Red completa de STRING del paso 02b: results/network/string_completo.rds"),
     make_option(c("-d", "--max_distancia"), type = "integer", default = 3,
                 help = "Distancia máxima para buscar genes intermedios [defecto: 3]"),
     make_option(c("-o", "--output"), type = "character", default = NULL,
@@ -22,8 +21,8 @@ option_list <- list(
 )
 opt <- parse_args(OptionParser(option_list = option_list))
 
-if (is.null(opt$particion) || is.null(opt$genes) || is.null(opt$string_dir) || is.null(opt$output)) {
-    stop("Uso: Rscript 07_distancias_clusters.R -p particion_final.tsv -g hpo_genes.tsv --string_dir string_data -o salida")
+if (is.null(opt$particion) || is.null(opt$genes) || is.null(opt$red) || is.null(opt$output)) {
+    stop("Uso: Rscript 07_distancias_clusters.R -p particion_final.tsv -g hpo_genes.tsv -r string_completo.rds -o salida")
 }
 dir.create(opt$output, recursive = TRUE, showWarnings = FALSE)
 
@@ -31,19 +30,23 @@ dir.create(opt$output, recursive = TRUE, showWarnings = FALSE)
 particion <- read.delim(opt$particion, colClasses = "character")
 genes <- read.delim(opt$genes, colClasses = "character", quote = "")
 
-# 3. Red completa de STRING con el umbral elegido
-# Usamos la carpeta del paso 02 para no volver a descargar nada
-cat("Cargando la red completa de STRING, puede tardar unos minutos\n")
-string_db <- STRINGdb$new(version = "12.5", species = 9606,
-                          score_threshold = opt$umbral, input_directory = opt$string_dir)
-mapeo <- string_db$map(genes, "gene_symbol", removeUnmappedRows = TRUE)
-cat("\n")
-g <- simplify(string_db$get_graph())
-proteinas <- string_db$get_proteins()
+# 3. Red completa de STRING guardada en el paso 02b
+# Quitamos las interacciones por debajo del umbral y las proteínas que se quedan sin ninguna
+g <- readRDS(opt$red)
+g <- delete_edges(g, E(g)[combined_score < opt$umbral])
+g <- delete_vertices(g, which(degree(g) == 0))
 cat("Red de STRING (umbral", opt$umbral, "):", vcount(g), "proteínas y", ecount(g), "interacciones\n")
 
-# Las semillas sin ninguna interacción en STRING no tienen distancia a nada
-mapeo <- mapeo[mapeo$STRING_id %in% V(g)$name, ]
+# Buscamos cada gen semilla en la red por su símbolo
+mapeo <- data.frame(gene_symbol = genes$gene_symbol,
+                    STRING_id = V(g)$name[match(genes$gene_symbol, V(g)$gen)])
+
+# Las semillas sin ninguna interacción en STRING con este umbral no tienen distancia a nada
+fuera <- mapeo$gene_symbol[is.na(mapeo$STRING_id)]
+if (length(fuera) > 0) {
+    cat("Semillas sin interacciones en STRING con este umbral:", paste(fuera, collapse = ", "), "\n")
+}
+mapeo <- mapeo[!is.na(mapeo$STRING_id), ]
 
 # 4. Grupos: cada cluster es un grupo, y cada semilla que no entró en ningún
 # cluster (gen aislado en la red semilla) es un grupo de un solo gen
@@ -92,7 +95,9 @@ for (i in 1:(n - 1)) {
 
         camino <- shortest_paths(g, from = rownames(sub)[pos[1]], to = colnames(sub)[pos[2]])$vpath[[1]]
         intermedios <- names(camino)[2:d]
-        simbolos <- proteinas$preferred_name[match(intermedios, proteinas$protein_external_id)]
+        simbolos <- V(g)$gen[match(intermedios, V(g)$name)]
+        # el grado de cada intermedio, para ver si es un hub que se une a casi todo
+        grados <- degree(g, v = intermedios)
 
         caminos <- rbind(caminos, data.frame(
             grupo_a = grupos[i],
@@ -100,7 +105,8 @@ for (i in 1:(n - 1)) {
             gen_a = genes_a[pos[1]],
             gen_b = genes_b[pos[2]],
             distancia = d,
-            genes_intermedios = paste(simbolos, collapse = ",")
+            genes_intermedios = paste(simbolos, collapse = ","),
+            grado_intermedios = paste(grados, collapse = ",")
         ))
     }
 }
