@@ -17,13 +17,28 @@ option_list <- list(
   make_option(c("-o", "--output"), type = "character", default = "../results/topology",
               help = "Carpeta de salida"),
   make_option(c("-g", "--genes"), type = "character", default = NULL,
-              help = "Archivo con lista de genes semilla (un gen por línea)")
+              help = "Mapeo de semillas del paso 02: mapeo_genes.csv"),
+  make_option(c("-r", "--referencia"), type = "character", default = NULL,
+            help = "Red completa de STRING del paso 02b: string_completo.rds"),
+make_option(c("-u", "--umbral"), type = "integer", default = NULL,
+            help = "Umbral de STRING: 400, 700 o 900")
 )
 
 opt <- parse_args(OptionParser(option_list = option_list))
 
 if (is.null(opt$input)) {
   stop("Error: Debe especificar un archivo de entrada con -i o --input")
+}
+if (!is.null(opt$genes)) {
+  if (is.null(opt$referencia) || is.null(opt$umbral)) {
+    stop("Con -g debes indicar también -r y -u.")
+  }
+  if (!(opt$umbral %in% c(400, 700, 900))) {
+    stop("El umbral debe ser 400, 700 o 900.")
+  }
+  if (opt$modo != "completo" || is.na(opt$n_perm) || opt$n_perm < 1) {
+    stop("La prueba necesita modo completo y al menos una simulación.")
+  }
 }
 
 set.seed(opt$semilla) # Establece la semilla para sample_gnm y rewire
@@ -175,31 +190,38 @@ write.table(
 )
 
 # 7. Prueba del módulo de enfermedad (opcional, dado por el argumento -g)
-#Comprueba si los genes del fenotipo están más conectados entre sí en STRING que conjuntos aleatorios del mismo tamaño
+# Comprueba si los genes del fenotipo están más conectados entre sí en STRING que conjuntos aleatorios del mismo tamaño
+# obtenidos de la red completa de string como referencia (obtenida en 02b_string_completo.R)
 
 seed_genes <- NULL
 
 if (!is.null(opt$genes)) {
-  seed_genes <- readLines(opt$genes)
+  mapeo <- read.csv2(opt$genes, colClasses= "character")
+  seed_genes <- unique(mapeo$STRING_id)
 }
 
 if (!is.null(seed_genes)) {
-  seed_genes_in_net <- intersect(seed_genes, V(g)$name)
+  g_ref <- readRDS(opt$referencia)
+  g_ref <- igraph::delete_edges(g_ref, E(g_ref)[combined_score < opt$umbral])
+  
+  seed_genes_in_net <- intersect(seed_genes, V(g_ref)$name)
 
   if (length(seed_genes_in_net) > 1) {
-    g_seed_sub <-igraph::induced_subgraph(g, seed_genes_in_net)
+    g_seed_sub <-igraph::induced_subgraph(g_ref, seed_genes_in_net)
     obs_seed_lcc <- max(igraph::components(g_seed_sub)$csize)
-    background_genes <- V(g)$name
+    background_genes <- V(g_ref)$name
     n_seeds <- length(seed_genes_in_net)
+    
+    set.seed(opt$semilla)
 
     null_seed_lcc <- replicate(opt$n_perm, {
-        rand_nodes <- sample(background_genes, n_seeds)
-        g_rand_sub <- igraph::induced_subgraph(g, rand_nodes)
+        rand_nodes <- sample(background_genes, n_seeds, replace = FALSE)
+        g_rand_sub <- igraph::induced_subgraph(g_ref, rand_nodes)
         max(igraph::components(g_rand_sub)$csize)
       }
     )
 
-    p_val_disease_module <- mean(null_seed_lcc >= obs_seed_lcc)
+    p_val_disease_module <- (1 + sum(null_seed_lcc >= obs_seed_lcc)) / (opt$n_perm + 1)
 
     res_disease_module <-
       data.frame(genes_en_red = n_seeds, obs_lcc_size = obs_seed_lcc,
