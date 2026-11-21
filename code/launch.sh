@@ -80,6 +80,9 @@ paso 02b_string_completo Rscript 02b_string_completo.R \
 for umbral in 400 700 900; do
     paso "03_topologia_umbral_$umbral" Rscript 03_topologia.R \
         -i "$RES/network/umbral_$umbral/aristas.csv" \
+        -g "$RES/network/umbral_$umbral/mapeo_genes.csv" \
+        -r "$RES/network/string_completo.rds" \
+        -u "$umbral" \
         -m completo \
         -n 1000 \
         -s 123 \
@@ -99,20 +102,22 @@ for umbral in 400 700 900; do
         --particion "$RES/clusters/umbral_$umbral/particion_final.tsv" \
         --metricas "$RES/topology/umbral_$umbral/metricas_nodos.tsv" \
         -o "$RES/clusters/umbral_$umbral/enlaces"
-
-    paso "07_distancias_clusters_umbral_$umbral" Rscript 07_distancias_clusters.R \
-        -p "$RES/clusters/umbral_$umbral/particion_final.tsv" \
-        -g "$RES/data/hpo_genes.tsv" \
-        -u $umbral \
-        -r "$RES/network/string_completo.rds" \
-        -d 3 \
-        -o "$RES/clusters/umbral_$umbral/distancias"
 done
 
 paso 06_ora Rscript 06_ora.R \
     -i "$RES/data" \
     -o "$RES/ora" \
     -s 123
+
+for umbral in 400 700 900; do
+    paso "07_distancias_clusters_umbral_$umbral" Rscript 07_distancias_clusters.R \
+        -p "$RES/clusters/umbral_$umbral/particion_final.tsv" \
+        -g "$RES/data/hpo_genes.tsv" \
+        -u "$umbral" \
+        -r "$RES/network/string_completo.rds" \
+        -d 3 \
+        -o "$RES/clusters/umbral_$umbral/distancias"
+done
 
 echo ""
 echo "=============================================="
