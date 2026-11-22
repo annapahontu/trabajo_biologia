@@ -15,6 +15,14 @@ HPO_RELEASE="v2026-09-01"
 # true para construirla, false para saltarla (es la parte que más tarda del paso 02)
 EXPANDIR=false
 
+# --- Genes puente del paso 09 ---
+# umbral de la red sobre la que se añaden los puentes
+UMBRAL_PUENTES=700
+# cuántos genes puente se prueban a añadir
+N_PUENTES="3 5 10"
+# los genes con más interacciones que esto se descartan por ser hubs
+MAX_GRADO=150
+
 # Rutas
 CODE_DIR="$(cd "$(dirname "$0")" && pwd)"
 RAIZ="$(dirname "$CODE_DIR")"
@@ -107,6 +115,8 @@ done
 paso 06_ora Rscript 06_ora.R \
     -i "$RES/data" \
     -o "$RES/ora" \
+    -u 400,700,900 \
+    -m 3 \
     -s 123
 
 for umbral in 400 700 900; do
@@ -117,6 +127,35 @@ for umbral in 400 700 900; do
         -r "$RES/network/string_completo.rds" \
         -d 3 \
         -o "$RES/clusters/umbral_$umbral/distancias"
+done
+
+# Añadimos unos pocos genes puente a la red, sacamos de nuevo los clusters
+# y repetimos el ORA solo con las semillas para ver cómo cambian
+for n in $N_PUENTES; do
+    paso "09_red_puentes_n_$n" Rscript 09_red_puentes.R \
+        -c "$RES/clusters/umbral_$UMBRAL_PUENTES/distancias/caminos_cortos.tsv" \
+        -g "$RES/data/hpo_genes.tsv" \
+        -r "$RES/network/string_completo.rds" \
+        -u "$UMBRAL_PUENTES" \
+        -n "$n" \
+        --max_grado "$MAX_GRADO" \
+        -o "$RES/network/puentes_$UMBRAL_PUENTES/n_$n"
+
+    paso "04_clustering_puentes_n_$n" Rscript 04_clustering.R \
+        -i "$RES/network/puentes_$UMBRAL_PUENTES/n_$n/aristas.csv" \
+        -m louvain \
+        -r 1 \
+        -n 100 \
+        -s 123 \
+        -o "$RES/clusters/puentes_$UMBRAL_PUENTES/n_$n"
+
+    paso "06_ora_puentes_n_$n" Rscript 06_ora.R \
+        -i "$RES/data" \
+        -o "$RES/ora/puentes_$UMBRAL_PUENTES/n_$n" \
+        -m 3 \
+        -s 123 \
+        --particion "$RES/clusters/puentes_$UMBRAL_PUENTES/n_$n/particion_final.tsv" \
+        --puentes "$RES/network/puentes_$UMBRAL_PUENTES/n_$n/genes_puente.tsv"
 done
 
 echo ""
