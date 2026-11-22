@@ -1,8 +1,7 @@
 code/R_LIBS/
 R_LIBS/
 software/
-results/*
-!results/.gitkeep
+results/
 
 *.aux
 *.bbl
