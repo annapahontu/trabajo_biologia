@@ -20,7 +20,15 @@ option_list <- list(
     make_option(c("-o", "--output"), type = "character", default = NULL,
                 help = "Carpeta de salida para los resultados del ORA: results/ORA"),
     make_option(c("-s", "--semilla"), type = "integer", default = 123,
-              help = "Semilla aleatoria para reproducibilidad [defecto: 123]")
+              help = "Semilla aleatoria para reproducibilidad [defecto: 123]"),
+    make_option(c("-u", "--umbrales"), type = "character", default = "400,700,900",
+              help = "Umbrales de STRING separados por comas [defecto: 400,700,900]"),
+    make_option(c("-m", "--min_genes"), type = "integer", default = 3,
+              help = "Genes mínimos de un cluster para hacerle el ORA [defecto: 3]"),
+    make_option(c("--particion"), type = "character", default = NULL,
+              help = "Opcional, partición del paso 04 sobre la red con puentes: results/clusters/puentes_700/n_5/particion_final.tsv"),
+    make_option(c("--puentes"), type = "character", default = NULL,
+              help = "Genes puente del paso 09, que se quitan antes del ORA: results/network/puentes_700/n_5/genes_puente.tsv")
 )
 opt <- parse_args(OptionParser(option_list = option_list))
 
@@ -43,7 +51,16 @@ set.seed(opt$semilla) # Establece la semilla para sample_gnm y rewire
 
 # 2. Obtención de tablas de entrada
 carpeta_results <- dirname(normalizePath(opt$input))
-umbrales <- c(400, 700, 900)
+umbrales <- as.integer(strsplit(opt$umbrales, ",")[[1]])
+if (any(is.na(umbrales))) {
+  stop("Los umbrales deben ser números separados por comas, por ejemplo 400,700,900")
+}
+
+# con --particion y --puentes se hace solo el ORA de los clusters de la red con puentes
+modo_puentes <- !is.null(opt$particion)
+if (modo_puentes && is.null(opt$puentes)) {
+  stop("Con --particion hay que indicar también --puentes")
+}
 
 # función para leer las tablas de entrada
 leer_tabla <- function(archivo, columnas, sep, permitir_vacia = FALSE){
@@ -103,7 +120,9 @@ if (length(fuera_fondo) > 0){
 
 redes <- list()
 
-for(umbral in umbrales){
+# con la red de puentes no hace falta leer las redes de cada umbral
+umbrales_red <- if (modo_puentes) integer(0) else umbrales
+for(umbral in umbrales_red){
   carpeta_red <- file.path(carpeta_results, "network", paste0("umbral_", umbral))
   carpeta_cluster <- file.path(carpeta_results, "clusters", paste0("umbral_", umbral))
   nodos <- leer_tabla(file.path(carpeta_red, "nodos.csv"), "gene_symbol", ";", TRUE)$gene_symbol
@@ -139,7 +158,7 @@ if(!dir.exists(opt$output)){
 
 cat("Genes HPO de entrada: ", nrow(hpo), "\n")
 cat("Genes en el fondo HPO proporcionado: ", length(fondo), "\n")
-cat("Se analizarán las redes originales de los umbrales: ", umbrales, "\n")
+if (!modo_puentes) cat("Se analizarán las redes originales de los umbrales: ", umbrales, "\n")
 
 # 4. Sobrerepresentación con ORA 
 # Función ORA
@@ -221,78 +240,100 @@ hacer_ora <- function(genes, universo, carpeta, titulo){
 }
 
 
-# Análisis ORA global
-ora_global <- hacer_ora(
-  genes = hpo$gene_symbol,
-  universo = fondo,
-  carpeta = opt$output,
-  titulo = "ORA global HPO - Gene Ontology (BP)"
-)
-
-# Análisis ORA por comunidades de cada umbral
-for (umbral in umbrales){
-  red <- redes[[as.character(umbral)]]
-  carpeta_umbral <- file.path(opt$output, paste0("umbral_", umbral))
-  dir.create(carpeta_umbral, recursive = TRUE, showWarnings = FALSE)
+# ORA de cada cluster con al menos min_genes genes
+# Los clusters más pequeños no tienen potencia para dar términos, así que los dejamos fuera
+ora_por_clusters <- function(particion, universo, carpeta, titulo){
+  dir.create(carpeta, recursive = TRUE, showWarnings = FALSE)
 
   # agrupacion de genes por comunidad
-  genes_clusters <- split(
-    red$particion$gene,
-    red$particion$cluster
-  )
+  genes_clusters <- split(particion$gene, particion$cluster)
 
-  cat("\n=== ORA por comunidades: umbral", umbral, "===\n")
-  cat("Genes de la red usados como fondo:", length(red$nodos), "\n")
+  cat("\n=== ORA por comunidades:", titulo, "===\n")
+  cat("Genes de la red usados como fondo:", length(universo), "\n")
   cat("Número de comunidades:", length(genes_clusters), "\n")
   cat("Genes de cada comunidad:\n")
   print(genes_clusters)
 
   resumen_comunidades <- data.frame(
     cluster = character(),
-    n_genes = integer(), 
+    n_genes = integer(),
     estado_ORA = character(),
     n_terminos = integer()
   )
 
   # ora por comunidad
   for (i in names(genes_clusters)){
-    carpeta_ora_cluster <- file.path(
-      carpeta_umbral,
-      paste0("cluster_", i)
-    )
+    n_genes <- length(genes_clusters[[i]])
 
-    ora_cluster <- hacer_ora(
-      genes = genes_clusters[[i]],
-      universo = red$nodos,
-      carpeta = carpeta_ora_cluster,
-      titulo = paste("ORA comunidad ",i,"- umbral", umbral, "- Gene Ontology (BP)")
-    )
-
-    # En caso de que no se encuentren resultados de ora
-    n_terminos <- NA_integer_
-    if (ora_cluster$estado != "sin_resultado_ORA"){
-      n_terminos <- nrow(ora_cluster$tabla)
+    if (n_genes < opt$min_genes) {
+      estado <- paste0("menos_de_", opt$min_genes, "_genes")
+      n_terminos <- NA_integer_
+    } else {
+      ora_cluster <- hacer_ora(
+        genes = genes_clusters[[i]],
+        universo = universo,
+        carpeta = file.path(carpeta, paste0("cluster_", i)),
+        titulo = paste("ORA comunidad", i, "-", titulo, "- Gene Ontology (BP)")
+      )
+      estado <- ora_cluster$estado
+      # En caso de que no se encuentren resultados de ora
+      n_terminos <- NA_integer_
+      if (estado != "sin_resultado_ORA"){
+        n_terminos <- nrow(ora_cluster$tabla)
+      }
     }
 
     resumen_comunidades <- rbind(
       resumen_comunidades,
-      data.frame(
-        cluster = i,
-        n_genes = length(genes_clusters[[i]]),
-        estado_ORA = ora_cluster$estado,
-        n_terminos = n_terminos
-      )
+      data.frame(cluster = i, n_genes = n_genes, estado_ORA = estado, n_terminos = n_terminos)
     )
   }
 
   write.csv2(
     resumen_comunidades,
-    file.path(carpeta_umbral, "resumen_comunidades.csv"),
+    file.path(carpeta, "resumen_comunidades.csv"),
     row.names = FALSE
   )
 
-  cat("\nResumen del umbral", umbral, ":\n")
+  cat("\nResumen de", titulo, ":\n")
   print(resumen_comunidades, row.names = FALSE)
+}
+
+if (!modo_puentes) {
+  # Análisis ORA global
+  ora_global <- hacer_ora(
+    genes = hpo$gene_symbol,
+    universo = fondo,
+    carpeta = opt$output,
+    titulo = "ORA global HPO - Gene Ontology (BP)"
+  )
+
+  # Análisis ORA por comunidades de cada umbral
+  for (umbral in umbrales){
+    red <- redes[[as.character(umbral)]]
+    ora_por_clusters(
+      particion = red$particion,
+      universo = red$nodos,
+      carpeta = file.path(opt$output, paste0("umbral_", umbral)),
+      titulo = paste("umbral", umbral)
+    )
+  }
+} else {
+  # ORA de la red con puentes
+  # Quitamos los genes puente de los clusters y del fondo. Si los dejáramos, el resultado
+  # sería circular, porque los elegimos justo por estar conectados a las semillas
+  particion <- leer_tabla(opt$particion, c("gene", "cluster"), "\t")
+  puentes <- leer_tabla(opt$puentes, "gen", "\t")$gen
+
+  particion <- particion[!particion$gene %in% puentes, ]
+  cat("Genes puente quitados antes del ORA:", paste(puentes, collapse = ", "), "\n")
+
+  ora_por_clusters(
+    particion = particion,
+    universo = particion$gene,
+    carpeta = opt$output,
+    titulo = "red con puentes"
+  )
 }
 
 cat("\nResultados del ORA guardados en:", opt$output, "\n")
