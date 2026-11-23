@@ -158,6 +158,17 @@ for n in $N_PUENTES; do
         --puentes "$RES/network/puentes_$UMBRAL_PUENTES/n_$n/genes_puente.tsv"
 done
 
+
+# Figuras de resumen del informe (embudo de genes, sensibilidad al umbral
+# y grado frente a betweenness de cada umbral)
+paso 08_figuras_resumen Rscript 08_figuras_resumen.R \
+    -d "$RES/data" \
+    -n "$RES/network" \
+    -t "$RES/topology" \
+    -u 400,700,900 \
+    -k 5 \
+    -o "$RES/figuras"
+
 echo ""
 echo "=============================================="
 echo " Análisis terminado en $((SECONDS / 60)) min $((SECONDS % 60)) s"
