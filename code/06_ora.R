@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-paquetes <- c("optparse", "clusterProfiler", "org.Hs.eg.db", "enrichplot")
+paquetes <- c("optparse", "clusterProfiler", "org.Hs.eg.db", "enrichplot", "ggplot2")
 for (p in paquetes) {
   if (!requireNamespace(p, quietly = TRUE)) {
     stop("No se puede cargar el paquete ", p, "
@@ -12,6 +12,7 @@ library(optparse)
 library(clusterProfiler)
 library(org.Hs.eg.db)
 library(enrichplot)
+library(ggplot2)
 
 # 1. Argumentos
 option_list <- list(
@@ -28,7 +29,9 @@ option_list <- list(
     make_option(c("--particion"), type = "character", default = NULL,
               help = "Opcional, partición del paso 04 sobre la red con puentes: results/clusters/puentes_700/n_5/particion_final.tsv"),
     make_option(c("--puentes"), type = "character", default = NULL,
-              help = "Genes puente del paso 09, que se quitan antes del ORA: results/network/puentes_700/n_5/genes_puente.tsv")
+              help = "Genes puente del paso 09, que se quitan antes del ORA: results/network/puentes_700/n_5/genes_puente.tsv"),
+    make_option(c("--cc"), action = "store_true", default = FALSE,
+              help = "Opcional, añade el ORA de componente celular (GO CC) al ORA global. Los clusters siempre usan solo BP")
 )
 opt <- parse_args(OptionParser(option_list = option_list))
 
@@ -47,6 +50,14 @@ if (is.na(opt$semilla)) {
 }
 
 set.seed(opt$semilla) # Establece la semilla para sample_gnm y rewire
+
+# BP siempre; CC solo en el ORA global y solo si se pide con --cc
+ontologias_global <- if (opt$cc) c("BP", "CC") else "BP"
+nombres_ontologias <- c(BP = "Proceso biológico", CC = "Componente celular")
+
+# colores de las figuras: azules suaves, sin rojo ni naranja (paleta común del informe)
+azul_fuerte <- "#4a7ba6"
+azul_suave <- "#c6d9ea"
 
 
 # 2. Obtención de tablas de entrada
@@ -87,7 +98,7 @@ leer_tabla <- function(archivo, columnas, sep, permitir_vacia = FALSE){
   tabla
 }
 
-cat("\n=== Paso 06: enriquecimiento funcional Gene Ontology - Biological Process ===\n")
+cat("\n=== Paso 06: enriquecimiento funcional Gene Ontology (BP", if (opt$cc) ", y CC en el ORA global", ") ===\n", sep = "")
 cat("comprobando los resultados de los pasos 01, 02 y 04...\n")
 hpo <- leer_tabla(file.path(opt$input, "hpo_genes.tsv"), c("ncbi_id", "gene_symbol"), "\t")
 
@@ -161,8 +172,8 @@ cat("Genes en el fondo HPO proporcionado: ", length(fondo), "\n")
 if (!modo_puentes) cat("Se analizarán las redes originales de los umbrales: ", umbrales, "\n")
 
 # 4. Sobrerepresentación con ORA 
-# Función ORA
-hacer_ora <- function(genes, universo, carpeta, titulo){
+# ORA de una sola ontología (BP o CC)
+ora_una_ontologia <- function(genes, universo, carpeta, titulo, ont){
   dir.create(carpeta, recursive= TRUE, showWarnings = FALSE)
   cat("\n", titulo, "\n", sep= "")
   cat("Genes de entrada: ", length(genes), "| Fondo proporcionado: ", length(universo), "\n")
@@ -173,7 +184,7 @@ hacer_ora <- function(genes, universo, carpeta, titulo){
       universe      = universo,    # Background: all genes measured in the experiment
       OrgDb         = org.Hs.eg.db,       # Gene annotation database
       keyType       = "SYMBOL",         # Type of gene identifier
-      ont           = "BP",               # Ontology (BP: biological processes)
+      ont           = ont,                # Ontology: BP o CC
       pAdjustMethod = "BH",               # Method for p-value adjustment
       pvalueCutoff  = 0.05,               # Significance threshold
       qvalueCutoff  = 0.2,
@@ -200,13 +211,13 @@ hacer_ora <- function(genes, universo, carpeta, titulo){
     estado <- if (nrow(tabla) > 0) "con_terminos_significativos" else "sin_terminos_significativos"
   }
 
-  write.csv2(tabla, file.path(carpeta, "ORA_BP.csv"), row.names = FALSE)
+  write.csv2(tabla, file.path(carpeta, paste0("ORA_", ont, ".csv")), row.names = FALSE)
 
-  archivo_pdf <- file.path(carpeta, "plot_ORA.pdf")
+  archivo_pdf <- file.path(carpeta, paste0("dotplot_", ont, ".pdf"))
   if (file.exists(archivo_pdf) && !file.remove(archivo_pdf)){
     stop("No se puede reemplazar la figura: ", archivo_pdf)
   }
-  archivo_barplot <- file.path(carpeta, "barplot_ORA.pdf")
+  archivo_barplot <- file.path(carpeta, paste0("barplot_", ont, ".pdf"))
   if (file.exists(archivo_barplot) && !file.remove(archivo_barplot)){
     stop("No se puede reemplazar la figura: ", archivo_barplot)
   }
@@ -228,25 +239,79 @@ hacer_ora <- function(genes, universo, carpeta, titulo){
       if (nrow(tabla_simple) > 0) {
           pdf(archivo_pdf, width = 9, height = 9)
           tryCatch(
-              print(dotplot(go_simple, showCategory = 10, title = titulo)),
+              print(dotplot(go_simple, showCategory = 10, title = titulo) +
+                    scale_colour_gradient(low = azul_fuerte, high = azul_suave)),
               finally = dev.off()
           )
           # el barplot muestra cuántos genes caen en cada término
           pdf(archivo_barplot, width = 9, height = 9)
           tryCatch(
-              print(barplot(go_simple, showCategory = 10, title = titulo)),
+              print(barplot(go_simple, showCategory = 10, title = titulo) +
+                    scale_fill_gradient(low = azul_fuerte, high = azul_suave)),
               finally = dev.off()
           )
       }
   }
 
-  write.csv2(tabla_simple, file.path(carpeta, "ORA_BP_simplificado.csv"), row.names = FALSE)
+  write.csv2(tabla_simple, file.path(carpeta, paste0("ORA_", ont, "_simplificado.csv")), row.names = FALSE)
   writeLines(c(paste("Analisis:", titulo), paste("Estado:", estado),
                 paste("Genes de entrada:", length(genes)),
                 paste("Genes del fondo proporcionado:", length(universo)),
-                "GO BP; keyType SYMBOL; BH; pvalueCutoff 0.05; qvalueCutoff 0.2"),
-              file.path(carpeta, "estado_ORA.txt"))
+                paste0("GO ", ont, "; keyType SYMBOL; BH; pvalueCutoff 0.05; qvalueCutoff 0.2")),
+              file.path(carpeta, paste0("estado_ORA_", ont, ".txt")))
   list(tabla = tabla, tabla_simple = tabla_simple, estado = estado)
+}
+
+# Dotplot con un panel por ontología y los n_top términos más significativos de cada una
+# (ya simplificados), para ver BP y CC en una sola figura
+figura_combinada <- function(res, carpeta, titulo, n_top = 5){
+  archivo <- file.path(carpeta, "dotplot_GO_combinado.pdf")
+  if (file.exists(archivo) && !file.remove(archivo)){
+    stop("No se puede reemplazar la figura: ", archivo)
+  }
+
+  partes <- lapply(names(res), function(ont) {
+    t <- res[[ont]]$tabla_simple
+    if (nrow(t) == 0) return(NULL)
+    t <- head(t[order(t$p.adjust), c("Description", "GeneRatio", "Count", "p.adjust")], n_top)
+    t$ontologia <- ont
+    t
+  })
+  datos <- do.call(rbind, partes)
+  if (is.null(datos) || nrow(datos) == 0) {
+    cat("Ninguna ontología tiene términos significativos, no se hace la figura combinada.\n")
+    return(invisible(NULL))
+  }
+
+  # GeneRatio viene como texto "k/n"
+  datos$ratio <- sapply(strsplit(datos$GeneRatio, "/"),
+                        function(x) as.numeric(x[1]) / as.numeric(x[2]))
+  datos$Count <- as.numeric(datos$Count)
+  datos$p.adjust <- as.numeric(datos$p.adjust)
+  datos$ontologia <- factor(datos$ontologia, levels = names(nombres_ontologias),
+                            labels = nombres_ontologias)
+
+  p <- ggplot(datos, aes(x = ratio, y = reorder(Description, ratio),
+                         size = Count, colour = p.adjust)) +
+    geom_point() +
+    facet_grid(ontologia ~ ., scales = "free_y", space = "free_y") +
+    scale_colour_gradient(low = azul_fuerte, high = azul_suave) +
+    labs(x = "GeneRatio", y = NULL, size = "Genes", colour = "p ajustado", title = titulo) +
+    theme_bw()
+  ggsave(archivo, p, width = 9, height = 8)
+}
+
+# ORA de las ontologías pedidas (por defecto solo BP)
+# Si hay más de una, hace también la figura combinada
+# Devuelve una lista con el resultado de cada ontología
+hacer_ora <- function(genes, universo, carpeta, titulo, ontologias = "BP"){
+  res <- lapply(ontologias, function(ont) {
+    ora_una_ontologia(genes, universo, carpeta,
+                      paste0(titulo, " (", ont, ")"), ont)
+  })
+  names(res) <- ontologias
+  if (length(ontologias) > 1) figura_combinada(res, carpeta, titulo)
+  res
 }
 
 
@@ -264,12 +329,7 @@ ora_por_clusters <- function(particion, universo, carpeta, titulo){
   cat("Genes de cada comunidad:\n")
   print(genes_clusters)
 
-  resumen_comunidades <- data.frame(
-    cluster = character(),
-    n_genes = integer(),
-    estado_ORA = character(),
-    n_terminos = integer()
-  )
+  resumen_comunidades <- data.frame()
 
   # ora por comunidad
   for (i in names(genes_clusters)){
@@ -279,12 +339,13 @@ ora_por_clusters <- function(particion, universo, carpeta, titulo){
       estado <- paste0("menos_de_", opt$min_genes, "_genes")
       n_terminos <- NA_integer_
     } else {
+      # en los clusters solo BP
       ora_cluster <- hacer_ora(
         genes = genes_clusters[[i]],
         universo = universo,
         carpeta = file.path(carpeta, paste0("cluster_", i)),
-        titulo = paste("ORA comunidad", i, "-", titulo, "- Gene Ontology (BP)")
-      )
+        titulo = paste("ORA comunidad", i, "-", titulo, "- Gene Ontology")
+      )$BP
       estado <- ora_cluster$estado
       # En caso de que no se encuentren resultados de ora
       n_terminos <- NA_integer_
@@ -315,7 +376,8 @@ if (!modo_puentes) {
     genes = hpo$gene_symbol,
     universo = fondo,
     carpeta = opt$output,
-    titulo = "ORA global HPO - Gene Ontology (BP)"
+    titulo = "ORA global HPO - Gene Ontology",
+    ontologias = ontologias_global
   )
 
   # Análisis ORA por comunidades de cada umbral
