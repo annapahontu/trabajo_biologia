@@ -9,7 +9,6 @@ option_list <- list(
     make_option(c("-i", "--input"), type = "character", default = NULL, help = "Aristas de la red: results/network/umbral_700/aristas.csv (paso 02)"),
     make_option(c("-o", "--output"), type = "character", default = NULL, help = "Carpeta de salida: results/clusters/enlaces"),
     make_option(c("-s", "--semilla"), type = "integer", default = 123, help = "Semilla aleatoria [defecto: 123]"),
-    make_option(c("--nodos"), type = "character", default = NULL, help = "Opcional, nodos_expandida.csv del paso 02 para distinguir semillas y añadidos"),
     make_option(c("--particion"), type = "character", default = NULL, help = "Opcional, particion_final.tsv del paso 04 (gene, cluster)"),
     make_option(c("--metricas"), type = "character", default = NULL, help = "Opcional, metricas_nodos.tsv del paso 03 (para la betweenness)")
 )
@@ -20,7 +19,7 @@ if (is.null(opt$input) || is.null(opt$output)) {
     stop("Uso: Rscript 05_comunidades_enlaces.R -i results/network/umbral_700/aristas.csv -o results/clusters/enlaces")
 }
 # los opcionales que no se pasan son NULL y no entran en el vector
-for (archivo in c(opt$input, opt$nodos, opt$particion, opt$metricas)) {
+for (archivo in c(opt$input, opt$particion, opt$metricas)) {
     if (!file.exists(archivo)) {
         stop("No se encuentra el archivo de entrada: ", archivo)
     }
@@ -36,9 +35,6 @@ g <- graph_from_data_frame(aristas[, c("from", "to")], directed = FALSE)
 g <- igraph::simplify(g, remove.multiple = TRUE, remove.loops = TRUE)
 cat("Red cargada:", gorder(g), "nodos y", gsize(g), "aristas\n")
 
-if (!is.null(opt$nodos)) {
-    tipos <- read.csv2(opt$nodos, stringsAsFactors = FALSE)
-}
 if (!is.null(opt$particion)) {
     particion <- read.delim(opt$particion, stringsAsFactors = FALSE)
 }
@@ -139,9 +135,6 @@ for (i in 1:nrow(nodos_com)) {
     nodos_com$n_comunidades[i] <- length(com_nodos[[i]])
     nodos_com$comunidades[i] <- paste(com_nodos[[i]], collapse = ",")
 }
-if (!is.null(opt$nodos)) {
-    nodos_com$tipo <- tipos$tipo[match(nodos_com$gene, tipos$gene)]
-}
 nodos_com <- nodos_com[order(-nodos_com$n_comunidades, nodos_com$gene), ]
 
 write.table(data.frame(from = extremos[, 1], to = extremos[, 2], comunidad = grupos_final),
@@ -171,10 +164,6 @@ invisible(dev.off())
 colores_aristas <- rep("gray85", ecount(g))
 colores_aristas[!is.na(grupos_final)] <- rainbow(n_com)[grupos_final[!is.na(grupos_final)]]
 colores_nodos <- rep("gray90", vcount(g))
-if (!is.null(opt$nodos)) {
-    tipo_nodo <- tipos$tipo[match(V(g)$name, tipos$gene)]
-    colores_nodos <- ifelse(tipo_nodo == "semilla", "skyblue", "orange")
-}
 
 set.seed(opt$semilla)
 layout <- layout_with_fr(g)
@@ -183,9 +172,6 @@ pdf(file.path(opt$output, "red_comunidades_enlaces.pdf"), width = 14, height = 1
 plot(g, layout = layout, edge.color = colores_aristas, edge.width = 2, vertex.color = colores_nodos,
      vertex.size = 3, vertex.label.cex = 0.7, vertex.label.color = "black",
      main = paste("Comunidades de enlaces (", n_com, "comunidades)"))
-if (!is.null(opt$nodos)) {
-    legend("bottomleft", legend = c("Semilla (HPO)", "Añadido"), fill = c("skyblue", "orange"), bty = "n")
-}
 invisible(dev.off())
 
 # 8. Genes puente frente a betweenness (solo con --metricas)
