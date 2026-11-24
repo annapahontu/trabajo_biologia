@@ -206,6 +206,10 @@ hacer_ora <- function(genes, universo, carpeta, titulo){
   if (file.exists(archivo_pdf) && !file.remove(archivo_pdf)){
     stop("No se puede reemplazar la figura: ", archivo_pdf)
   }
+  archivo_barplot <- file.path(carpeta, "barplot_ORA.pdf")
+  if (file.exists(archivo_barplot) && !file.remove(archivo_barplot)){
+    stop("No se puede reemplazar la figura: ", archivo_barplot)
+  }
 
   tabla_simple <- tabla
   if (is.null(resultado)) {
@@ -225,6 +229,12 @@ hacer_ora <- function(genes, universo, carpeta, titulo){
           pdf(archivo_pdf, width = 9, height = 9)
           tryCatch(
               print(dotplot(go_simple, showCategory = 10, title = titulo)),
+              finally = dev.off()
+          )
+          # el barplot muestra cuántos genes caen en cada término
+          pdf(archivo_barplot, width = 9, height = 9)
+          tryCatch(
+              print(barplot(go_simple, showCategory = 10, title = titulo)),
               finally = dev.off()
           )
       }
