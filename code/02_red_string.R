@@ -1,8 +1,10 @@
 #!/usr/bin/env Rscript
 
-library(optparse)
-library(STRINGdb)
-library(igraph)
+suppressPackageStartupMessages({
+    library(optparse)
+    library(STRINGdb)
+    library(igraph)
+})
 
 #1. Argumentos
 option_list <- list(
@@ -60,12 +62,15 @@ string_db <- STRINGdb$new(
 )
 
 # Mapeo de genes a ids STRING
-string_ids <- string_db$map(
-    genes,
-    "gene_symbol",
-    removeUnmappedRows = TRUE
-)
-cat("\n") # el aviso de map no termina en salto de línea
+# capture.output quita el aviso que imprime map ("we couldn't map to STRING X% of your identifiers"),
+# porque los genes no mapeados ya los contamos y mostramos nosotros más abajo
+invisible(suppressMessages(capture.output(
+    string_ids <- string_db$map(
+        genes,
+        "gene_symbol",
+        removeUnmappedRows = TRUE
+    )
+)))
 
 if (nrow(string_ids) == 0){
     stop("No se encontraron identificadores STRING para los genes proporcionados. Revisa la entrada.")

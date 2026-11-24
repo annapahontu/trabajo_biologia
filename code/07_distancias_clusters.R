@@ -76,13 +76,9 @@ write.table(data.frame(grupo = grupos, dist_grupos, check.names = FALSE),
 # 6. Camino más corto entre cada pareja de grupos cercanos
 # Los genes que quedan dentro del camino son los que faltan para unir los dos grupos
 cat("\nBuscando los caminos más cortos entre", n * (n - 1) / 2, "parejas de grupos\n")
-barra <- txtProgressBar(min = 0, max = n * (n - 1) / 2, style = 3)
-pareja <- 0
 caminos <- data.frame()
 for (i in 1:(n - 1)) {
     for (j in (i + 1):n) {
-        pareja <- pareja + 1
-        setTxtProgressBar(barra, pareja)
         d <- dist_grupos[i, j]
         if (d < 2 || d > opt$max_distancia) {
             next
@@ -110,7 +106,6 @@ for (i in 1:(n - 1)) {
         ))
     }
 }
-close(barra)
 caminos <- caminos[order(caminos$distancia), ]
 write.table(caminos, file.path(opt$output, "caminos_cortos.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
 

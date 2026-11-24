@@ -8,11 +8,13 @@ for (p in paquetes) {
   }
 }
 
-library(optparse)
-library(clusterProfiler)
-library(org.Hs.eg.db)
-library(enrichplot)
-library(ggplot2)
+suppressPackageStartupMessages({
+  library(optparse)
+  library(clusterProfiler)
+  library(org.Hs.eg.db)
+  library(enrichplot)
+  library(ggplot2)
+})
 
 # 1. Argumentos
 option_list <- list(
@@ -178,8 +180,9 @@ ora_una_ontologia <- function(genes, universo, carpeta, titulo, ont){
   cat("\n", titulo, "\n", sep= "")
   cat("Genes de entrada: ", length(genes), "| Fondo proporcionado: ", length(universo), "\n")
 
+  # suppressMessages quita el aviso "select() returned 1:many mapping" al pasar a símbolos
   resultado <- tryCatch(
-    enrichGO(
+    suppressMessages(enrichGO(
       gene          = genes,        # Genes of interest
       universe      = universo,    # Background: all genes measured in the experiment
       OrgDb         = org.Hs.eg.db,       # Gene annotation database
@@ -189,7 +192,7 @@ ora_una_ontologia <- function(genes, universo, carpeta, titulo, ont){
       pvalueCutoff  = 0.05,               # Significance threshold
       qvalueCutoff  = 0.2,
       readable      = TRUE                # Show gene symbols instead of Entrez IDs
-    ),
+    )),
     error = function(e) {
       stop("Error en ", titulo, ": ", conditionMessage(e))
     }
@@ -229,7 +232,7 @@ ora_una_ontologia <- function(genes, universo, carpeta, titulo, ont){
       cat("No hay terminos que superen los filtros del ORA. No se genera una figura.\n")
   } else {
       cat("Terminos significativos antes de reducir redundancia:", nrow(tabla), "\n")
-      go_simple <- simplify(resultado)
+      go_simple <- suppressMessages(simplify(resultado))
       tabla_simple <- as.data.frame(go_simple)
       cat("Terminos despues de simplify():", nrow(tabla_simple), "\n")
       cat("Primeros terminos ordenados por p ajustado, con sus genes:\n")
@@ -239,15 +242,16 @@ ora_una_ontologia <- function(genes, universo, carpeta, titulo, ont){
       if (nrow(tabla_simple) > 0) {
           pdf(archivo_pdf, width = 9, height = 9)
           tryCatch(
-              print(dotplot(go_simple, showCategory = 10, title = titulo) +
-                    scale_colour_gradient(low = azul_fuerte, high = azul_suave)),
+              # suppressMessages quita el aviso "Scale for colour is already present" al poner nuestros colores
+              suppressMessages(print(dotplot(go_simple, showCategory = 10, title = titulo) +
+                    scale_colour_gradient(low = azul_fuerte, high = azul_suave))),
               finally = dev.off()
           )
           # el barplot muestra cuántos genes caen en cada término
           pdf(archivo_barplot, width = 9, height = 9)
           tryCatch(
-              print(barplot(go_simple, showCategory = 10, title = titulo) +
-                    scale_fill_gradient(low = azul_fuerte, high = azul_suave)),
+              suppressMessages(print(barplot(go_simple, showCategory = 10, title = titulo) +
+                    scale_fill_gradient(low = azul_fuerte, high = azul_suave))),
               finally = dev.off()
           )
       }
