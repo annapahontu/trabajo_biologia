@@ -169,6 +169,15 @@ paso 08_figuras_resumen Rscript 08_figuras_resumen.R \
     -k 5 \
     -o "$RES/figuras"
 
+# Versiones de R y de los paquetes usados, para poder citarlas en el informe
+paso session_info env RES="$RES" Rscript -e '
+    suppressPackageStartupMessages({
+        library(optparse); library(httr); library(jsonlite); library(igraph); library(STRINGdb)
+        library(clusterProfiler); library(org.Hs.eg.db); library(enrichplot)
+    })
+    writeLines(capture.output(sessionInfo()), file.path(Sys.getenv("RES"), "session_info.txt"))
+'
+
 echo ""
 echo "=============================================="
 echo " Análisis terminado en $((SECONDS / 60)) min $((SECONDS % 60)) s"
