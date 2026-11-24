@@ -9,7 +9,9 @@ option_list <- list(
     make_option(c("-i", "--input"), type = "character", default = NULL,
                 help = "Entrada del proyecto: results/data/hpo_genes.tsv (generada por el paso 01)"),
     make_option(c("-o", "--output"), type = "character", default = NULL,
-                help = "Salida del proyecto: results/network (redes, tablas y descargas de STRING)")
+                help = "Salida del proyecto: results/network (redes, tablas y descargas de STRING)"),
+    make_option(c("-u", "--umbrales"), type = "character", default = "400,700,900",
+                help = "Umbrales de STRING separados por comas o espacios [defecto: 400,700,900]")
 )
 
 opt <- parse_args(OptionParser(option_list = option_list))
@@ -40,7 +42,10 @@ dir.create(carpeta_string, recursive= TRUE, showWarnings = FALSE)
 version_string <- "12.5"
 especie <- 9606 # Homo sapiens
 semilla <- 123
-umbrales <- c(400, 700, 900)
+umbrales <- sort(as.integer(strsplit(opt$umbrales, "[, ]+")[[1]]))
+if (length(umbrales) == 0 || any(is.na(umbrales)) || any(umbrales < 0 | umbrales > 1000)) {
+    stop("Los umbrales deben ser números entre 0 y 1000, por ejemplo 400,500,600,700,800,900")
+}
 resumen <- data.frame()
 
 cat("Genes HPO de entrada: ", length(unique(genes$gene_symbol)), "\n")
@@ -186,6 +191,6 @@ write.csv2(
     file.path(opt$output, "sensibilidad_umbrales.csv"),
     row.names = FALSE
 )
-cat("Resumen de los tres umbrales; \n")
+cat("Resumen de los umbrales:\n")
 print(resumen)
 cat("\nResultados guardados en:", file.path(opt$output, "sensibilidad_umbrales.csv"), "\n")
