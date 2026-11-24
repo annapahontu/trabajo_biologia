@@ -105,6 +105,6 @@ invisible(dev.off())
 
 cat("\nGenes con mayor betweenness en cada umbral:\n")
 print(puentes, row.names = FALSE)
-write.table(puentes, file.path(opt$output, "genes_puente.tsv"), sep = "\t", row.names = FALSE, quote = FALSE)
+write.table(puentes, file.path(opt$output, "top_betweenness.tsv"), sep = "\t", row.names = FALSE, quote = FALSE)
 
 cat("\nFiguras guardadas en:", opt$output, "\n")
