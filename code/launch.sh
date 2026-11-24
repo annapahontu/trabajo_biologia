@@ -11,10 +11,6 @@ HPO_NOMBRE="Ureteral duplication"
 # no cambie cuando salga una versión nueva
 HPO_RELEASE="v2026-09-01"
 
-# --- Red expandida del paso 02 ---
-# true para construirla, false para saltarla (es la parte que más tarda del paso 02)
-EXPANDIR=false
-
 # --- Genes puente del paso 09 ---
 # umbral de la red sobre la que se añaden los puentes
 UMBRAL_PUENTES=700
@@ -74,7 +70,6 @@ paso 01_descargar_hpo Rscript 01_descargar_hpo.R \
 # Construir las redes de STRING y comparar umbrales
 paso 02_red_string Rscript 02_red_string.R \
     -i "$RES/data/hpo_genes.tsv" \
-    --expandir "$EXPANDIR" \
     -o "$RES/network"
 
 # Red completa de STRING, cargada una sola vez para las distancias entre clusters
