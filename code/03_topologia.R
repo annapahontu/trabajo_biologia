@@ -66,7 +66,7 @@ metricas_globales <- data.frame(
   diametro = igraph::diameter(g, directed = FALSE),
   distancia_media = igraph::mean_distance(g, directed = FALSE),
   transitividad_global = igraph::transitivity(g, type = "global"),
-  transitividad_media = igraph::transitivity(g, type = "average"),
+  transitividad_media = igraph::transitivity(g, type = "average", isolates = "zero"),
   asortatividad_grado = igraph::assortativity_degree(g, directed = FALSE)
 )
 
@@ -132,14 +132,17 @@ for (i in 1:opt$n_perm) {
   null_mod[i] <- igraph::modularity(igraph::cluster_louvain(g_null))
 }
 
-p_trans <- mean(null_trans >= obs_trans)
-p_dist <- mean(null_dist <= obs_dist)
-p_mod <- mean(null_mod >= obs_mod)
+# p-valor empírico: sumamos 1 arriba y abajo para contar también la red observada
+p_empirico <- function(n_extremos, n_perm) (1 + n_extremos) / (n_perm + 1)
 
-# Texto del p-valor para los títulos. Con n permutaciones el mínimo que podemos ver es 1/n,
-# así que si sale 0 ponemos "p < 1/n" en vez de "p = 0"
+p_trans <- p_empirico(sum(null_trans >= obs_trans), opt$n_perm)
+p_dist <- p_empirico(sum(null_dist <= obs_dist), opt$n_perm)
+p_mod <- p_empirico(sum(null_mod >= obs_mod), opt$n_perm)
+
+# Texto del p-valor para los títulos. Con n permutaciones el mínimo posible es 1/(n+1),
+# así que en ese caso ponemos "p <=" porque el valor real podría ser aún menor
 texto_p <- function(p, n_perm) {
-  if (p == 0) return(paste("p <", 1 / n_perm))
+  if (p <= 1 / (n_perm + 1)) return(paste("p <=", signif(1 / (n_perm + 1), 2)))
   paste("p =", round(p, 4))
 }
 
@@ -173,9 +176,9 @@ for (i in seq_len(opt$n_perm)) {
   null_mod_rewire[i] <-igraph::modularity(igraph::cluster_louvain(g_rewired))
 }
 
-p_trans_rewire <- mean(null_trans_rewire >= obs_trans)
-p_dist_rewire <- mean(null_dist_rewire <= obs_dist)
-p_mod_rewire <- mean(null_mod_rewire >= obs_mod)
+p_trans_rewire <- p_empirico(sum(null_trans_rewire >= obs_trans), opt$n_perm)
+p_dist_rewire <- p_empirico(sum(null_dist_rewire <= obs_dist), opt$n_perm)
+p_mod_rewire <- p_empirico(sum(null_mod_rewire >= obs_mod), opt$n_perm)
 
 resultados_nulos <- data.frame(
   metrica = c("transitividad", "distancia_media", "modularidad"),
@@ -203,6 +206,9 @@ if (!is.null(opt$genes)) {
 if (!is.null(seed_genes)) {
   g_ref <- readRDS(opt$referencia)
   g_ref <- igraph::delete_edges(g_ref, E(g_ref)[combined_score < opt$umbral])
+  # quitamos las proteínas que se quedan sin interacciones a este umbral, si no los
+  # conjuntos aleatorios cogerían muchos genes aislados y el test saldría demasiado significativo
+  g_ref <- igraph::delete_vertices(g_ref, which(igraph::degree(g_ref) == 0))
   
   seed_genes_in_net <- intersect(seed_genes, V(g_ref)$name)
 
@@ -221,7 +227,7 @@ if (!is.null(seed_genes)) {
       }
     )
 
-    p_val_disease_module <- (1 + sum(null_seed_lcc >= obs_seed_lcc)) / (opt$n_perm + 1)
+    p_val_disease_module <- p_empirico(sum(null_seed_lcc >= obs_seed_lcc), opt$n_perm)
 
     res_disease_module <-
       data.frame(genes_en_red = n_seeds, obs_lcc_size = obs_seed_lcc,
@@ -285,11 +291,14 @@ simular_robustez_random_promedio <- function(graph, n_sim = 100) {
 frac_hubs <- simular_robustez(g, modo = "hub")
 frac_random <- simular_robustez_random_promedio(g, n_sim = 100)
 
+# el primer punto es con 0 nodos quitados y el último con n-1
+x_robustez <- (seq_along(frac_hubs) - 1) / length(frac_hubs)
+
 pdf(file.path(opt$output, "robustez_red.pdf"), width = 6, height = 5)
-plot(seq(0, 1, length.out = length(frac_hubs)), frac_hubs, type = "l", col = "red", lwd = 2,
+plot(x_robustez, frac_hubs, type = "l", col = "red", lwd = 2,
      xlab = "Proporción de nodos retirados", ylab = "Fracción Componente Mayor",
      main = "Análisis de Robustez")
-lines(seq(0, 1, length.out = length(frac_random)), frac_random, col = "blue", lwd = 2, lty = 2)
+lines(x_robustez, frac_random, col = "blue", lwd = 2, lty = 2)
 legend("topright", legend = c("Ataque a Hubs", "Remoción Aleatoria"),
        col = c("red", "blue"), lty = c(1, 2), lwd = 2)
 invisible(dev.off())
