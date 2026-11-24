@@ -179,7 +179,7 @@ invisible(dev.off())
 if (!is.null(opt$metricas)) {
     nodos_com$betweenness <- metricas$betweenness[match(nodos_com$gene, metricas$gene)]
     puentes <- nodos_com[nodos_com$n_comunidades > 1, ]
-    write.table(puentes[, c("gene", "n_comunidades", "betweenness")], file.path(opt$output, "genes_puente.tsv"),
+    write.table(puentes[, c("gene", "n_comunidades", "betweenness")], file.path(opt$output, "genes_varias_comunidades.tsv"),
                 sep = "\t", quote = FALSE, row.names = FALSE)
 
     top <- nodos_com[order(-nodos_com$betweenness), ]
