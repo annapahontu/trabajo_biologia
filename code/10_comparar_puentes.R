@@ -13,6 +13,8 @@ option_list <- list(
                 help = "Umbral de STRING [defecto: 700]"),
     make_option(c("-n", "--n_puentes"), type = "character", default = "3,5,10",
                 help = "N separados por comas [defecto: 3,5,10]"),
+    make_option(c("-k", "--n_red"), type = "integer", default = 5,
+                help = "N de la red con puentes que se dibuja coloreada por cluster [defecto: 5]"),
     make_option(c("-o", "--output"), type = "character", default = NULL,
                 help = "Carpeta de salida")
 )
@@ -25,7 +27,7 @@ if (is.null(opt$results) || is.null(opt$output)) {
 
 dir.create(opt$output, recursive = TRUE, showWarnings = FALSE)
 
-n_puentes <- as.integer(strsplit(opt$n_puentes, " ")[[1]])
+n_puentes <- as.integer(strsplit(opt$n_puentes, "[, ]+")[[1]])
 
 if (any(is.na(n_puentes))) {
     stop("Formato incorrecto en --n_puentes")
@@ -107,8 +109,12 @@ for (N in casos) {
     # clusters
     archivo_particion <- file.path(carpeta_cluster,"particion_final.tsv")
     part <- leer_particion(archivo_particion)
-    membership_vector <- as.numeric(as.factor(part$cluster))
-    mod <- modularity(g, membership_vector)
+    # el cluster de cada nodo tiene que ir en el mismo orden que V(g)
+    miembros <- part$cluster[match(V(g)$name, part$gene)]
+    if (any(is.na(miembros))) {
+        stop("Hay nodos de la red sin cluster en ", archivo_particion)
+    }
+    mod <- modularity(g, as.integer(as.factor(miembros)))
 
     n_clusters <- length(unique(part$cluster))
 
@@ -189,12 +195,56 @@ pdf(file.path(opt$output,"comparacion_puentes.pdf"), width = 10, height = 8)
 par(mfrow = c(2, 2))
 plot(comparacion$puentes, comparacion$semillas_conectadas, type = "b", pch = 19, col = "steelblue", 
     xlab = "Genes puente", ylab = "Semillas conectadas", main = "Conectividad")
+max_clusters <- max(comparacion$clusters) + 1
 plot(comparacion$puentes, comparacion$clusters, type = "b", pch = 19, col = "darkgreen",
-    xlab = "Genes puente", ylab = "Clusters", main = "Número de clusters")
+    xlab = "Genes puente", ylab = "Clusters", main = "Número de clusters",
+    ylim = c(0, max_clusters), yaxt = "n")
+axis(2, at = 0:max_clusters)
 plot(comparacion$puentes, comparacion$modularidad, type = "b", pch = 19, col = "darkred",
     xlab = "Genes puente", ylab = "Modularidad", main = "Modularidad")
-plot(comparacion$puentes, comparacion$clusters_con_ORA,type = "b", pch = 19,
-    col = "purple", xlab = "Genes puente", ylab = "Clusters con ORA", main = "Enriquecimiento funcional")
+# el tope del eje son los clusters que tenían genes suficientes para el ORA
+max_ora <- max(comparacion$clusters_analizables, na.rm = TRUE) + 1
+plot(comparacion$puentes, comparacion$clusters_con_ORA, type = "b", pch = 19,
+    col = "purple", xlab = "Genes puente", ylab = "Clusters con ORA", main = "Enriquecimiento funcional",
+    ylim = c(0, max_ora), yaxt = "n")
+axis(2, at = 0:max_ora)
 
 invisible(dev.off())
+
+# 7. Red con puentes coloreada por cluster
+# Cada color es un cluster y los genes puente van en cuadrado y con su nombre
+carpeta_red <- file.path(opt$results, "network", paste0("puentes_", opt$umbral), paste0("n_", opt$n_red))
+carpeta_cluster <- file.path(opt$results, "clusters", paste0("puentes_", opt$umbral), paste0("n_", opt$n_red))
+
+if (file.exists(file.path(carpeta_red, "aristas.csv"))) {
+    g <- leer_red(file.path(carpeta_red, "aristas.csv"))
+    part <- leer_particion(file.path(carpeta_cluster, "particion_final.tsv"))
+    puentes <- read.delim(file.path(carpeta_red, "genes_puente.tsv"), stringsAsFactors = FALSE)$gen
+
+    cluster_nodo <- part$cluster[match(V(g)$name, part$gene)]
+    colores <- rainbow(length(unique(cluster_nodo)), s = 0.6)
+    es_puente <- V(g)$name %in% puentes
+
+    set.seed(123)
+    pdf(file.path(opt$output, paste0("red_puentes_clusters_n_", opt$n_red, ".pdf")), width = 9, height = 9)
+    plot(g, layout = layout_with_fr(g),
+         vertex.color = colores[as.integer(as.factor(cluster_nodo))],
+         vertex.shape = ifelse(es_puente, "square", "circle"),
+         vertex.size = ifelse(es_puente, 8, 5),
+         vertex.label = V(g)$name,
+         # las semillas con el nombre pequeño y en gris, los puentes más grandes y en negrita
+         vertex.label.cex = ifelse(es_puente, 0.9, 0.6),
+         vertex.label.font = ifelse(es_puente, 2, 1),
+         vertex.label.color = ifelse(es_puente, "black", "grey30"),
+         vertex.label.dist = 1,
+         edge.width = 0.5, edge.color = "grey70",
+         main = paste("Clusters de la red con", opt$n_red, "genes puente (umbral", opt$umbral, ")"))
+    legend("bottomleft", legend = c(paste("Cluster", sort(unique(cluster_nodo))), "Gen puente"),
+           pch = c(rep(21, length(colores)), 22), pt.bg = c(colores, "white"),
+           pt.cex = 1.5, bty = "n", cex = 0.8)
+    invisible(dev.off())
+} else {
+    warning("No existe la red con ", opt$n_red, " puentes, no se dibuja")
+}
+
 cat("\nResultados guardados en:", opt$output, "\n")
