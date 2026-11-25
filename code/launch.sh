@@ -11,6 +11,9 @@ HPO_NOMBRE="Ureteral duplication"
 # no cambie cuando salga una versión nueva
 HPO_RELEASE="v2026-09-01"
 
+# ---- Parámetros globales ----
+UMBRALES=(400 500 600 700 800)
+
 # --- Genes puente del paso 09 ---
 # umbral de la red sobre la que se añaden los puentes
 UMBRAL_PUENTES=700
@@ -59,6 +62,10 @@ echo "=============================================="
 echo " Análisis de $HPO_ID ($HPO_NOMBRE)"
 echo "=============================================="
 
+# ===================================================
+# 1. OBTENCIÓN DE GENES Y CREACIÓN DE RED CON STRING 
+# ===================================================
+
 # Genes y enfermedades del término HPO
 echo ""
 echo "Descargando genes de HPO"
@@ -66,28 +73,22 @@ paso 01_descargar_hpo Rscript 01_descargar_hpo.R \
     --hpo "$HPO_ID" \
     --release "$HPO_RELEASE" \
     -o "$RES/data"
-    
+
 # Construir las redes de STRING y comparar umbrales
 paso 02_red_string Rscript 02_red_string.R \
     -i "$RES/data/hpo_genes.tsv" \
+    -u "${UMBRALES[*]}" \
     -o "$RES/network"
 
-# Red completa de STRING, cargada una sola vez para las distancias entre clusters
-paso 02b_string_completo Rscript 02b_string_completo.R \
-    -u 400 \
-    --string_dir "$RES/network/string_data" \
-    -o "$RES/network/string_completo.rds"
+# ===================================================
+# 2. EXPLORACIÓN DE REDES CON DISTINTOS UMBRALES
+# ===================================================
+# Topología, clustering y comunidades de enlaces de la red de cada umbral.
 
-# Topología, clustering, comunidades de enlaces y distancias entre clusters de la red de cada umbral,
-# para ver en cuál se distinguen mejor los clusters
-for umbral in 400 700 900; do
+for umbral in "${UMBRALES[@]}"; do
     paso "03_topologia_umbral_$umbral" Rscript 03_topologia.R \
         -i "$RES/network/umbral_$umbral/aristas.csv" \
-        -g "$RES/network/umbral_$umbral/mapeo_genes.csv" \
-        -r "$RES/network/string_completo.rds" \
-        -u "$umbral" \
-        -m completo \
-        -n 1000 \
+        -m rapido \
         -s 123 \
         -o "$RES/topology/umbral_$umbral"
 
@@ -103,18 +104,70 @@ for umbral in 400 700 900; do
         -i "$RES/network/umbral_$umbral/aristas.csv" \
         -s 123 \
         --particion "$RES/clusters/umbral_$umbral/particion_final.tsv" \
-        --metricas "$RES/topology/umbral_$umbral/metricas_nodos.tsv" \
         -o "$RES/clusters/umbral_$umbral/enlaces"
 done
+
+# para argumentar las decisiones tomadas en cuanto al umbral    
+paso 08_figuras_resumen Rscript 08_figuras_resumen.R \
+    -d "$RES/data" \
+    -n "$RES/network" \
+    -t "$RES/topology" \
+    -u 400,500,600,700,800 \
+    --solo_sensibilidad \
+    -o "$RES/figuras/exploracion"
+
+# A 400, Louvain agrupa los 17 genes del grupo denso en un único cluster.
+# A 600, tenemos los mismos genes que el umbral 400, pero ahora se reparten 
+# en dos grupos de 11 y 6 genes. Louvain reproduce esta partición en las 100 
+# repeticiones y Leiden obtiene la misma agrupación. 
+# Por ende, elegimos 600 como umbral principal y 400 como referencia.
+
+# ==============================================
+# 3. AMPLIACIÓN DE ANÁLISIS CON UMBRALES ELEGIDOS
+# ==============================================
+# Comparamos la topología y las comunidades de enlaces para estudiar cómo cambia el papel 
+# de los genes entre ambas redes.
+
+# Red completa de STRING para las distancias entre clusters
+paso 02b_string_completo Rscript 02b_string_completo.R \
+    -u 400 \
+    --string_dir "$RES/network/string_data" \
+    -o "$RES/network/string_completo.rds"
+
+for umbral in 400 600; do
+    paso "03_completo_umbral_$umbral" Rscript 03_topologia.R \
+        -i "$RES/network/umbral_$umbral/aristas.csv" \
+        -g "$RES/network/umbral_$umbral/mapeo_genes.csv" \
+        -r "$RES/network/string_completo.rds" \
+        -u "$umbral" \
+        -m completo \
+        -n 1000 \
+        -s 123 \
+        -o "$RES/topology/umbral_$umbral"
+
+    # ejecución del 5 nuevamente para ambos umbrales, con tal de obtener metricas
+    paso "05_enlaces_con_metricas_umbral_$umbral" Rscript 05_comunidades_enlaces.R \
+        -i "$RES/network/umbral_$umbral/aristas.csv" \
+        -s 123 \
+        --particion "$RES/clusters/umbral_$umbral/particion_final.tsv" \
+        --metricas "$RES/topology/umbral_$umbral/metricas_nodos.tsv" \
+        -o "$RES/clusters/umbral_$umbral/enlaces"
+
+done
+# con ORA comapramos las procesos biológicos enriquedidos en el grupo de 17 genes
+# a 400 con los dos grupos de 11 y 6 con umbral 600, además de comprobar 
+# qué genes contribuyen al enriquecimiento de cada proceso
 
 paso 06_ora Rscript 06_ora.R \
     -i "$RES/data" \
     -o "$RES/ora" \
-    -u 400,700,900 \
+    -u 400,600 \
     -m 3 \
     -s 123
 
-for umbral in 400 700 900; do
+
+: '
+for umbral in 400 500 600 700 800; do
     paso "07_distancias_clusters_umbral_$umbral" Rscript 07_distancias_clusters.R \
         -p "$RES/clusters/umbral_$umbral/particion_final.tsv" \
         -g "$RES/data/hpo_genes.tsv" \
@@ -134,7 +187,7 @@ for n in $N_PUENTES; do
         -u "$UMBRAL_PUENTES" \
         -n "$n" \
         --max_grado "$MAX_GRADO" \
-        -o "$RES/network/puentes_$UMBRAL_PUENTES/n_$n"
+       -o "$RES/network/puentes_$UMBRAL_PUENTES/n_$n"
 
     paso "04_clustering_puentes_n_$n" Rscript 04_clustering.R \
         -i "$RES/network/puentes_$UMBRAL_PUENTES/n_$n/aristas.csv" \
@@ -152,15 +205,16 @@ for n in $N_PUENTES; do
         --particion "$RES/clusters/puentes_$UMBRAL_PUENTES/n_$n/particion_final.tsv" \
         --puentes "$RES/network/puentes_$UMBRAL_PUENTES/n_$n/genes_puente.tsv"
 done
-
+'
 
 # Figuras de resumen del informe (embudo de genes, sensibilidad al umbral
-# y grado frente a betweenness de cada umbral)
-paso 08_figuras_resumen Rscript 08_figuras_resumen.R \
+# y grado frente a betweenness de cada umbral
+
+paso 08_resumen_detallado Rscript 08_figuras_resumen.R \
     -d "$RES/data" \
     -n "$RES/network" \
-    -t "$RES/topology" \
-    -u 400,700,900 \
+   -t "$RES/topology" \
+    -u 400,600 \
     -k 5 \
     -o "$RES/figuras"
 
