@@ -21,7 +21,7 @@ option_list <- list(
   make_option(c("-r", "--referencia"), type = "character", default = NULL,
             help = "Red completa de STRING del paso 02b: string_completo.rds"),
 make_option(c("-u", "--umbral"), type = "integer", default = NULL,
-            help = "Umbral de STRING: 400, 700 o 900")
+            help = "Umbral de confianza de STRING (400 a 800)")
 )
 
 opt <- parse_args(OptionParser(option_list = option_list))
@@ -33,8 +33,8 @@ if (!is.null(opt$genes)) {
   if (is.null(opt$referencia) || is.null(opt$umbral)) {
     stop("Con -g debes indicar también -r y -u.")
   }
-  if (!(opt$umbral %in% c(400, 700, 900))) {
-    stop("El umbral debe ser 400, 700 o 900.")
+  if (!(opt$umbral %in% c(400, 500, 600, 700, 800))) {
+    stop("El umbral debe estar entre 400 y 800.")
   }
   if (opt$modo != "completo" || is.na(opt$n_perm) || opt$n_perm < 1) {
     stop("La prueba necesita modo completo y al menos una simulación.")
