@@ -154,7 +154,7 @@ for umbral in 400 600; do
         -o "$RES/clusters/umbral_$umbral/enlaces"
 
 done
-# con ORA comapramos las procesos biológicos enriquedidos en el grupo de 17 genes
+# con ORA comapramos las procesos biológicos enriquedidas en el grupo de 17 genes
 # a 400 con los dos grupos de 11 y 6 con umbral 600, además de comprobar 
 # qué genes contribuyen al enriquecimiento de cada proceso
 
