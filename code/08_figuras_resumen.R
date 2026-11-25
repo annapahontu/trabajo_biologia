@@ -10,7 +10,8 @@ option_list<- list(
     make_option(c("-t", "--topology"), type = "character", default = NULL, help = "Carpeta con las métricas del paso 03: results/topology"),
     make_option(c("-u", "--umbrales"), type = "character", default = "400,700,900", help = "Umbrales de STRING separados por comas [defecto: 400,700,900]"),
     make_option(c("-o","--output"), type = "character", default = NULL, help = "Carpeta de salida: results/figuras"),
-    make_option(c("-k", "--n_etiquetas"), type = "integer", default = 5, help = "Genes con mayor betweenness que se etiquetan en la figura 3 [defecto: 5]")
+    make_option(c("-k", "--n_etiquetas"), type = "integer", default = 5, help = "Genes con mayor betweenness que se etiquetan en la figura 3 [defecto: 5]"),
+    make_option(c("--solo_sensibilidad"), action = "store_true", default = FALSE, help = "Genera solo el embudo de genes y la sensibilidad al umbral")
 )
 
 opt<- parse_args(OptionParser(option_list = option_list))
@@ -28,8 +29,7 @@ cat("Umbrales:", umbrales, "\n")
 # Las métricas por nodo del 03 están en una carpeta por umbral
 archivos<- c(
   hpo_genes    = file.path(opt$data, "hpo_genes.tsv"),
-  sensibilidad = file.path(opt$network, "sensibilidad_umbrales.csv"),
-  file.path(opt$topology, paste0("umbral_", umbrales), "metricas_nodos.tsv")
+  sensibilidad = file.path(opt$network, "sensibilidad_umbrales.csv")
 )
 
 faltan<- archivos[!file.exists(archivos)]
@@ -41,14 +41,9 @@ if (length(faltan) > 0) {
 # 3. Leer las tablas
 hpo_genes<- read.delim(archivos["hpo_genes"], stringsAsFactors = FALSE)
 sensibilidad<- read.csv2(archivos["sensibilidad"], stringsAsFactors = FALSE)
+sensibilidad <- sensibilidad[sensibilidad$umbral %in% umbrales, , drop = FALSE]
 
-# Una tabla de métricas por umbral, guardadas en una lista con el umbral como nombre
-metricas<- list()
-for (u in umbrales) {
-  metricas[[as.character(u)]]<- read.delim(
-    file.path(opt$topology, paste0("umbral_", u), "metricas_nodos.tsv"),
-    stringsAsFactors = FALSE)
-}
+
 
 cat("Genes de HPO:", nrow(hpo_genes), "\n")
 print(sensibilidad[, c("umbral", "genes_mapeados", "nodos_red")])
@@ -79,6 +74,19 @@ for (col in names(columnas)) {
     text(sensibilidad$umbral, sensibilidad[[col]], sensibilidad[[col]], pos = 3)
 }
 invisible(dev.off())
+
+if (opt$solo_sensibilidad) {
+    cat("Embudo y sensibilidad guardados en:", opt$output, "\n")
+    quit(status = 0)
+}
+
+# Una tabla de métricas por umbral, guardadas en una lista con el umbral como nombre
+metricas<- list()
+for (u in umbrales) {
+  metricas[[as.character(u)]]<- read.delim(
+    file.path(opt$topology, paste0("umbral_", u), "metricas_nodos.tsv"),
+    stringsAsFactors = FALSE)
+}
 
 # 6. Figura 3: grado frente a betweenness en cada umbral
 # Los genes puente tienen betweenness alta: muchos caminos más cortos pasan por ellos
