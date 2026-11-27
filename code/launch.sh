@@ -219,9 +219,16 @@ for n in $N_PUENTES; do
         -s 123 \
         --particion "$RES/clusters/puentes_$UMBRAL_PUENTES/n_$n/particion_final.tsv" \
         --puentes "$RES/network/puentes_$UMBRAL_PUENTES/n_$n/genes_puente.tsv"
+
+    paso "10_comparacion_n_puentes" Rscript 10_comparar_puentes.R \
+        -r "$RES" \
+        -u "$UMBRAL_PUENTES" \
+        -n "$N_PUENTES" \
+        -k 5 \
+        -o "$RES/comparacion_puentes/umbral_$UMBRAL_PUENTES"    
+
 done
 
-: ''
 
 # Figuras de resumen del informe (embudo de genes, sensibilidad al umbral
 # y grado frente a betweenness de cada umbral
