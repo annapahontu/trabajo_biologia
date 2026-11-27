@@ -14,13 +14,7 @@ HPO_RELEASE="v2026-09-01"
 # ---- Parámetros globales ----
 UMBRALES=(400 500 600 700 800)
 
-# --- Genes puente del paso 09 ---
-# umbral de la red sobre la que se añaden los puentes
-UMBRAL_PUENTES=700
-# cuántos genes puente se prueban a añadir
-N_PUENTES="3 5 10"
-# los genes con más interacciones que esto se descartan por ser hubs
-MAX_GRADO=150
+
 
 # Rutas
 CODE_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -86,6 +80,7 @@ paso 02_red_string Rscript 02_red_string.R \
 # Topología, clustering y comunidades de enlaces de la red de cada umbral.
 
 for umbral in "${UMBRALES[@]}"; do
+    # metricas globales de topología en modo rápido
     paso "03_topologia_umbral_$umbral" Rscript 03_topologia.R \
         -i "$RES/network/umbral_$umbral/aristas.csv" \
         -m rapido \
@@ -134,6 +129,7 @@ paso 02b_string_completo Rscript 02b_string_completo.R \
     --string_dir "$RES/network/string_data" \
     -o "$RES/network/string_completo.rds"
 
+# Bucle de exploracion con 400 y 600
 for umbral in 400 600; do
     paso "03_completo_umbral_$umbral" Rscript 03_topologia.R \
         -i "$RES/network/umbral_$umbral/aristas.csv" \
@@ -153,21 +149,6 @@ for umbral in 400 600; do
         --metricas "$RES/topology/umbral_$umbral/metricas_nodos.tsv" \
         -o "$RES/clusters/umbral_$umbral/enlaces"
 
-done
-# con ORA comapramos las procesos biológicos enriquedidas en el grupo de 17 genes
-# a 400 con los dos grupos de 11 y 6 con umbral 600, además de comprobar 
-# qué genes contribuyen al enriquecimiento de cada proceso
-
-paso 06_ora Rscript 06_ora.R \
-    -i "$RES/data" \
-    -o "$RES/ora" \
-    -u 400,600 \
-    -m 3 \
-    -s 123
-
-
-: '
-for umbral in 400 500 600 700 800; do
     paso "07_distancias_clusters_umbral_$umbral" Rscript 07_distancias_clusters.R \
         -p "$RES/clusters/umbral_$umbral/particion_final.tsv" \
         -g "$RES/data/hpo_genes.tsv" \
@@ -176,6 +157,40 @@ for umbral in 400 500 600 700 800; do
         -d 3 \
         -o "$RES/clusters/umbral_$umbral/distancias"
 done
+
+
+# con ORA comapramos las procesos biológicos enriquedidas en el grupo de 17 genes
+# a 400 con los dos grupos de 11 y 6 con umbral 600, además de comprobar 
+# qué genes contribuyen al enriquecimiento de cada proceso
+paso 06_ora_bp Rscript 06_ora.R \
+        -i "$RES/data" \
+        -o "$RES/ora" \
+        -u 400,600 \
+        -m 3 \
+        -s 123
+
+    paso 06_ora_cc Rscript 06_ora.R \
+        -i "$RES/data" \
+        -o "$RES/ora" \
+        -u 400,600\
+        -m 3 \
+        -s 123 \
+        --cc
+
+
+
+# --- Genes puente del paso 09 ---
+# umbral de la red sobre la que se añaden los puentes
+UMBRAL_PUENTES=600
+# cuántos genes puente se prueban a añadir
+N_PUENTES="3 5 10"
+# los genes con más interacciones que esto se descartan por ser hubs
+MAX_GRADO=150
+
+#=======================================
+# 4. ADICIÓN DE PUENTES Y COMPARACIÓN 
+#=======================================
+
 
 # Añadimos unos pocos genes puente a la red, sacamos de nuevo los clusters
 # y repetimos el ORA solo con las semillas para ver cómo cambian
@@ -187,7 +202,7 @@ for n in $N_PUENTES; do
         -u "$UMBRAL_PUENTES" \
         -n "$n" \
         --max_grado "$MAX_GRADO" \
-       -o "$RES/network/puentes_$UMBRAL_PUENTES/n_$n"
+        -o "$RES/network/puentes_$UMBRAL_PUENTES/n_$n"
 
     paso "04_clustering_puentes_n_$n" Rscript 04_clustering.R \
         -i "$RES/network/puentes_$UMBRAL_PUENTES/n_$n/aristas.csv" \
@@ -205,7 +220,8 @@ for n in $N_PUENTES; do
         --particion "$RES/clusters/puentes_$UMBRAL_PUENTES/n_$n/particion_final.tsv" \
         --puentes "$RES/network/puentes_$UMBRAL_PUENTES/n_$n/genes_puente.tsv"
 done
-'
+
+: ''
 
 # Figuras de resumen del informe (embudo de genes, sensibilidad al umbral
 # y grado frente a betweenness de cada umbral
@@ -213,7 +229,7 @@ done
 paso 08_resumen_detallado Rscript 08_figuras_resumen.R \
     -d "$RES/data" \
     -n "$RES/network" \
-   -t "$RES/topology" \
+    -t "$RES/topology" \
     -u 400,600 \
     -k 5 \
     -o "$RES/figuras"
