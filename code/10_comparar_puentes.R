@@ -13,8 +13,6 @@ option_list <- list(
                 help = "Umbral de STRING [defecto: 700]"),
     make_option(c("-n", "--n_puentes"), type = "character", default = "3,5,10",
                 help = "N separados por comas [defecto: 3,5,10]"),
-    make_option(c("-k", "--n_red"), type = "integer", default = 5,
-                help = "N de la red con puentes que se dibuja coloreada por cluster [defecto: 5]"),
     make_option(c("-o", "--output"), type = "character", default = NULL,
                 help = "Carpeta de salida")
 )
@@ -213,11 +211,17 @@ invisible(dev.off())
 
 # 7. Red con puentes coloreada por cluster
 # Cada color es un cluster y los genes puente van en cuadrado y con su nombre
-carpeta_red <- file.path(opt$results, "network", paste0("puentes_", opt$umbral), paste0("n_", opt$n_red))
-carpeta_cluster <- file.path(opt$results, "clusters", paste0("puentes_", opt$umbral), paste0("n_", opt$n_red))
+for(n_red in n_puentes){
+    caso <- file.path(paste0("puentes_", opt$umbral), paste0("n_", n_red))
+    carpeta_red <- file.path(opt$results, "network", caso)
+    carpeta_cluster <- file.path(opt$results, "clusters", caso)
 
-if (file.exists(file.path(carpeta_red, "aristas.csv"))) {
-    g <- leer_red(file.path(carpeta_red, "aristas.csv"))
+    archivo_aristas <- file.path(carpeta_red, "aristas.csv")
+    if (!file.exists(file.path(archivo_aristas))) {
+        stop("Falta el archivo de aristas de la red con ", n_red, " puentes: ", archivo_aristas)
+    }
+
+    g <- leer_red(archivo_aristas)
     part <- leer_particion(file.path(carpeta_cluster, "particion_final.tsv"))
     puentes <- read.delim(file.path(carpeta_red, "genes_puente.tsv"), stringsAsFactors = FALSE)$gen
 
@@ -226,7 +230,8 @@ if (file.exists(file.path(carpeta_red, "aristas.csv"))) {
     es_puente <- V(g)$name %in% puentes
 
     set.seed(123)
-    pdf(file.path(opt$output, paste0("red_puentes_clusters_n_", opt$n_red, ".pdf")), width = 9, height = 9)
+    pdf(file.path(opt$output, paste0("red_puentes_clusters_n_", n_red, ".pdf")), width = 9, height = 9)
+    
     plot(g, layout = layout_with_fr(g),
          vertex.color = colores[as.integer(as.factor(cluster_nodo))],
          vertex.shape = ifelse(es_puente, "square", "circle"),
@@ -238,13 +243,11 @@ if (file.exists(file.path(carpeta_red, "aristas.csv"))) {
          vertex.label.color = ifelse(es_puente, "black", "grey30"),
          vertex.label.dist = 1,
          edge.width = 0.5, edge.color = "grey70",
-         main = paste("Clusters de la red con", opt$n_red, "genes puente (umbral", opt$umbral, ")"))
+         main = paste("Clusters de la red con", n_red, "genes puente (umbral", opt$umbral, ")"))
     legend("bottomleft", legend = c(paste("Cluster", sort(unique(cluster_nodo))), "Gen puente"),
            pch = c(rep(21, length(colores)), 22), pt.bg = c(colores, "white"),
            pt.cex = 1.5, bty = "n", cex = 0.8)
     invisible(dev.off())
-} else {
-    warning("No existe la red con ", opt$n_red, " puentes, no se dibuja")
 }
 
 cat("\nResultados guardados en:", opt$output, "\n")
