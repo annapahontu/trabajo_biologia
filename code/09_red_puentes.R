@@ -7,19 +7,19 @@ suppressPackageStartupMessages({
 # 1. Argumentos
 option_list <- list(
     make_option(c("-c", "--caminos"), type = "character", default = NULL,
-                help = "Caminos más cortos del paso 07: results/clusters/umbral_700/distancias/caminos_cortos.tsv"),
+                help = "Caminos más cortos del paso 07: results/clusters/umbral_[400|600]/distancias/caminos_cortos.tsv"),
     make_option(c("-g", "--genes"), type = "character", default = NULL,
                 help = "Genes semilla del paso 01: results/data/hpo_genes.tsv"),
     make_option(c("-r", "--red"), type = "character", default = NULL,
                 help = "Red completa de STRING del paso 02b: results/network/string_completo.rds"),
-    make_option(c("-u", "--umbral"), type = "integer", default = 700,
-                help = "Umbral de STRING [defecto: 700]"),
+    make_option(c("-u", "--umbral"), type = "integer", default = 600,
+                help = "Umbral de STRING [defecto: 600]"),
     make_option(c("-n", "--n_puentes"), type = "integer", default = 5,
                 help = "Número de genes puente que se añaden [defecto: 5]"),
     make_option(c("--max_grado"), type = "integer", default = 300,
                 help = "Grado máximo de un gen puente, para descartar hubs [defecto: 300]"),
     make_option(c("-o", "--output"), type = "character", default = NULL,
-                help = "Carpeta de salida: results/network/puentes_700/n_5")
+                help = "Carpeta de salida: results/network/puentes_[400|600]/n_5")
 )
 opt <- parse_args(OptionParser(option_list = option_list))
 
