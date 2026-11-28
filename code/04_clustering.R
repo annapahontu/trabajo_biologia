@@ -95,16 +95,16 @@ print(round(nmi, 2))
 write.table(data.frame(metodo = metodos, round(nmi, 4), check.names = FALSE), file.path(opt$output, "nmi_metodos.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
 
 # Heatmap de la NMI con el valor escrito en cada casilla
-pdf(file.path(opt$output, "nmi_metodos.pdf"), width = 8, height = 7)
+pdf(file.path(opt$output, "nmi_metodos.pdf"), width = 8, height = 7, pointsize = 12)
 par(mar = c(10, 10, 3, 2)) # pongo márgenes amplios para que quepan los nombres de los métodos
 n_met<- length(metodos)
-image(1:n_met, 1:n_met, nmi, col = hcl.colors(20, "YlOrRd", rev = TRUE), zlim = c(0, 1), axes = FALSE, xlab = "", ylab = "", main = "NMI entre métodos de clustering")
+image(1:n_met, 1:n_met, nmi, col = colorRampPalette(c("white", "#0072B2"))(20), zlim = c(0, 1), axes = FALSE, xlab = "", ylab = "")
 
 axis(1, at = 1:n_met, labels = metodos, las = 2)
 axis(2, at = 1:n_met, labels = metodos, las = 2)
 for(i in 1:n_met) {
     for(j in 1:n_met) {
-        text(i, j, round(nmi[i, j], 2), col = "white") # que si no pongo white sale muy oscuro
+        text(i, j, round(nmi[i, j], 2), col = ifelse(nmi[i, j] > 0.6, "white", "black")) # en blanco sobre las casillas oscuras
     }
 }
 invisible(dev.off())
@@ -127,10 +127,12 @@ print(table(estabilidad$n_clusters)) # cuántas repeticiones dan cada número de
 
 write.table(estabilidad, file.path(opt$output, "estabilidad_louvain.tsv"), sep = "\t", row.names = FALSE, quote = FALSE)
 
-pdf(file.path(opt$output, "estabilidad_louvain.pdf"), width = 9, height = 4)
+pdf(file.path(opt$output, "estabilidad_louvain.pdf"), width = 9, height = 4, pointsize = 12)
 par(mfrow = c(1, 2)) # dos gráficos uno al lado del otro
-hist(estabilidad$nmi_referencia, main = "NMI con la partición de referencia", xlab = "NMI", col = "lightblue", border = "white")
-barplot(table(estabilidad$n_clusters), main = "Número de clusters de Louvain", xlab = "Clusters", ylab = "Repeticiones", col = "lightblue")
+hist(estabilidad$nmi_referencia, main = "NMI con la partición de referencia", xlab = "NMI", ylab = "Repeticiones", col = "#56B4E9", border = "white")
+box(bty = "l") # para que los ejes cubran toda la figura
+barplot(table(estabilidad$n_clusters), main = "Número de clusters de Louvain", xlab = "Clusters", ylab = "Repeticiones", col = "#56B4E9", border = "white")
+box(bty = "l")
 invisible(dev.off())
 
 # 6. Partición final
@@ -150,8 +152,17 @@ print(split(particion_final$gene, particion_final$cluster))
 set.seed(opt$semilla)
 layout<- layout_with_fr(g)
 
-pdf(file.path(opt$output, "red_clusters.pdf"), width = 9, height = 9)
-plot(final, g, layout = layout, vertex.size = 3 + 2 * sqrt(degree(g)), vertex.label.cex = 0.6, vertex.label.color = "black", main = paste("Clusters con", opt$metodo, "(resolución", opt$resolucion, ")"))
+colores_clusters <- c("#0072B2", "#009E73", "#CC79A7", "#56B4E9", "#F0E442", "#332288",
+                      "#44AA99", "#999933", "#AA4499", "#88CCEE", "#117733", "#999999")
+n_cl <- length(final)
+if (n_cl > length(colores_clusters)) colores_clusters <- colorRampPalette(colores_clusters)(n_cl)
+colores_clusters <- colores_clusters[seq_len(n_cl)]
+
+pdf(file.path(opt$output, "red_clusters.pdf"), width = 9, height = 9, pointsize = 12)
+plot(final, g, layout = layout, vertex.size = 3 + 2 * sqrt(degree(g)), vertex.label.cex = 0.6, vertex.label.color = "black",
+     col = colores_clusters[membership(final)], mark.col = adjustcolor(colores_clusters, alpha.f = 0.3),
+     mark.border = colores_clusters, edge.color = ifelse(crossing(final, g), "#0072B2", "grey70"))
+# las aristas entre clusters distintos van en azul oscuro y las de dentro de un cluster en gris
 # el vertex.size es el tamaño del nodo según su grado (sqrt para que los hubs no salgan enormes)
 invisible(dev.off())
 
