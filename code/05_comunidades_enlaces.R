@@ -147,31 +147,33 @@ cat("\nGenes en más de una comunidad:", nrow(puentes), "\n")
 print(puentes, row.names = FALSE)
 
 # 7. Figuras
-pdf(file.path(opt$output, "densidad_particion.pdf"), width = 7, height = 5)
-plot(alturas, D, type = "b", pch = 19, xlab = "Altura de corte", ylab = "Densidad de partición",
-     main = paste("Densidad de partición (máximo", round(max(D), 3), "en", round(mejor, 3), ")"))
-abline(v = mejor, col = "red", lty = 2)
-points(mejor, max(D), col = "red", pch = 19, cex = 1.5)
+pdf(file.path(opt$output, "densidad_particion.pdf"), width = 7, height = 5, pointsize = 12)
+plot(alturas, D, type = "b", pch = 19, col = "#56B4E9", xlab = "Altura de corte", ylab = "Densidad de partición")
+abline(v = mejor, col = "#0072B2", lty = 2)
+points(mejor, max(D), col = "#0072B2", pch = 19, cex = 1.5)
+legend("topright", legend = paste("Máximo", round(max(D), 3), "en", round(mejor, 3)), bty = "n")
 invisible(dev.off())
 
 # con tantas aristas los nombres de las hojas no se leen, así que no los ponemos
-pdf(file.path(opt$output, "dendrograma_enlaces.pdf"), width = 10, height = 6)
-plot(hc, labels = FALSE, main = "Dendrograma de aristas", xlab = "", sub = "", ylab = "Altura (1 - S)")
-abline(h = mejor, col = "red", lty = 2)
+pdf(file.path(opt$output, "dendrograma_enlaces.pdf"), width = 10, height = 6, pointsize = 12)
+plot(hc, labels = FALSE, main = "", xlab = "", sub = "", ylab = "Altura (1 - S)")
+abline(h = mejor, col = "#0072B2", lty = 2)
 invisible(dev.off())
 
 # aristas coloreadas por comunidad y las descartadas en gris
 colores_aristas <- rep("gray85", ecount(g))
-colores_aristas[!is.na(grupos_final)] <- rainbow(n_com)[grupos_final[!is.na(grupos_final)]]
+colores_com <- c("#0072B2", "#009E73", "#CC79A7", "#56B4E9", "#F0E442", "#332288",
+                 "#44AA99", "#999933", "#AA4499", "#88CCEE", "#117733", "#999999")
+if (n_com > length(colores_com)) colores_com <- colorRampPalette(colores_com)(n_com)
+colores_aristas[!is.na(grupos_final)] <- colores_com[grupos_final[!is.na(grupos_final)]]
 colores_nodos <- rep("gray90", vcount(g))
 
 set.seed(opt$semilla)
 layout <- layout_with_fr(g)
 # el núcleo ciliar es muy denso, con la figura grande y nodos pequeños se leen mejor las etiquetas
-pdf(file.path(opt$output, "red_comunidades_enlaces.pdf"), width = 14, height = 14)
+pdf(file.path(opt$output, "red_comunidades_enlaces.pdf"), width = 14, height = 14, pointsize = 12)
 plot(g, layout = layout, edge.color = colores_aristas, edge.width = 2, vertex.color = colores_nodos,
-     vertex.size = 3, vertex.label.cex = 0.7, vertex.label.color = "black",
-     main = paste("Comunidades de enlaces (", n_com, "comunidades)"))
+     vertex.size = 3, vertex.label.cex = 0.7, vertex.label.color = "black")
 invisible(dev.off())
 
 # 8. Genes puente frente a betweenness (solo con --metricas)
@@ -188,11 +190,11 @@ if (!is.null(opt$metricas)) {
     print(top[, c("gene", "betweenness", "n_comunidades")], row.names = FALSE)
     cat("De los", nrow(top), "genes con mayor betweenness,", sum(top$n_comunidades > 1), "son genes puente\n")
 
-    pdf(file.path(opt$output, "puentes_betweenness.pdf"), width = 7, height = 6)
+    pdf(file.path(opt$output, "puentes_betweenness.pdf"), width = 7, height = 6, pointsize = 12)
     es_puente <- nodos_com$n_comunidades > 1
     plot(nodos_com$n_comunidades, nodos_com$betweenness, pch = 19,
-         col = ifelse(es_puente, "red", "gray60"), xlim = c(min(nodos_com$n_comunidades), max(nodos_com$n_comunidades) + 1.5),
-         xlab = "Número de comunidades de enlaces", ylab = "Betweenness", main = "Genes puente frente a betweenness")
+         col = ifelse(es_puente, "#0072B2", "#56B4E9"), xlim = c(min(nodos_com$n_comunidades), max(nodos_com$n_comunidades) + 1.5),
+         xlab = "Número de comunidades de enlaces", ylab = "Betweenness")
     # si hay muchos puentes las etiquetas se pisan, así que solo ponemos las de los 15 con más betweenness
     etiquetas <- puentes[order(-puentes$betweenness), ]
     etiquetas <- etiquetas[seq_len(min(15, nrow(etiquetas))), ]
