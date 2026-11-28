@@ -57,9 +57,9 @@ set.seed(opt$semilla) # Establece la semilla para sample_gnm y rewire
 ontologias_global <- if (opt$cc) c("BP", "CC") else "BP"
 nombres_ontologias <- c(BP = "Proceso biológico", CC = "Componente celular")
 
-# colores de las figuras: azules suaves, sin rojo ni naranja (paleta común del informe)
-azul_fuerte <- "#4a7ba6"
-azul_suave <- "#c6d9ea"
+
+azul_fuerte <- "#0072B2"
+azul_suave <- "#56B4E9"
 
 
 # 2. Obtención de tablas de entrada
@@ -243,14 +243,14 @@ ora_una_ontologia <- function(genes, universo, carpeta, titulo, ont){
           pdf(archivo_pdf, width = 9, height = 9)
           tryCatch(
               # suppressMessages quita el aviso "Scale for colour is already present" al poner nuestros colores
-              suppressMessages(print(dotplot(go_simple, showCategory = 10, title = titulo) +
+              suppressMessages(print(dotplot(go_simple, showCategory = 10, font.size = 12) +
                     scale_colour_gradient(low = azul_fuerte, high = azul_suave))),
               finally = dev.off()
           )
           # el barplot muestra cuántos genes caen en cada término
           pdf(archivo_barplot, width = 9, height = 9)
           tryCatch(
-              suppressMessages(print(barplot(go_simple, showCategory = 10, title = titulo) +
+              suppressMessages(print(barplot(go_simple, showCategory = 10, font.size = 12) +
                     scale_fill_gradient(low = azul_fuerte, high = azul_suave))),
               finally = dev.off()
           )
@@ -300,8 +300,8 @@ figura_combinada <- function(res, carpeta, titulo, n_top = 5){
     geom_point() +
     facet_grid(ontologia ~ ., scales = "free_y", space = "free_y") +
     scale_colour_gradient(low = azul_fuerte, high = azul_suave) +
-    labs(x = "GeneRatio", y = NULL, size = "Genes", colour = "p ajustado", title = titulo) +
-    theme_bw()
+    labs(x = "GeneRatio", y = NULL, size = "Genes", colour = "p ajustado") +
+    theme_bw(base_size = 12)
   ggsave(archivo, p, width = 9, height = 8)
 }
 
