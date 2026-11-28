@@ -104,13 +104,14 @@ write.table(metricas_nodos, file = file.path(opt$output, "metricas_nodos.tsv"),
 degree_vals <- igraph::degree(g)
 fit_power <- igraph::fit_power_law(degree_vals)
 
-pdf(file.path(opt$output, "distribucion_grado.pdf"), width = 8, height = 4)
+pdf(file.path(opt$output, "distribucion_grado.pdf"), width = 8, height = 4, pointsize = 12)
 par(mfrow = c(1, 2))
-hist(degree_vals, main = "Distribución de Grado", xlab = "Grado", col = "lightblue", border = "white")
+hist(degree_vals, main = "Distribución de Grado", xlab = "Grado", ylab = "Número de genes", col = "#56B4E9", border = "white")
+box(bty = "l") # para que los ejes cubran toda la figura
 deg_freq <- table(degree_vals)
 plot(as.numeric(names(deg_freq)), as.numeric(deg_freq), log = "xy",
      main = paste("Log-Log (alpha =", round(fit_power$alpha, 2), ")"),
-     xlab = "Grado (log)", ylab = "Frecuencia (log)", pch = 19, col = "darkblue")
+     xlab = "Grado (log)", ylab = "Frecuencia (log)", pch = 19, col = "#0072B2")
 invisible(dev.off())
 
 # 6. Modelos Nulos: de dos formas
@@ -146,20 +147,23 @@ texto_p <- function(p, n_perm) {
   paste("p =", round(p, 4))
 }
 
-pdf(file.path(opt$output, "modelos_nulos_histogramas.pdf"), width = 9, height = 3)
+pdf(file.path(opt$output, "modelos_nulos_histogramas.pdf"), width = 9, height = 3, pointsize = 12)
 par(mfrow = c(1, 3))
 
-hist(null_trans, main = paste0("Transitividad (", texto_p(p_trans, opt$n_perm), ")"), xlab = "Transitividad Nula", col = "gray90",
+hist(null_trans, main = paste0("Transitividad (", texto_p(p_trans, opt$n_perm), ")"), xlab = "Transitividad Nula", ylab = "Frecuencia", col = "#56B4E9", border = "white",
      xlim = range(c(null_trans, obs_trans)))
-abline(v = obs_trans, col = "red", lwd = 2)
+box(bty = "l")
+abline(v = obs_trans, col = "#0072B2", lwd = 2)
 
-hist(null_dist, main = paste0("Distancia Media (", texto_p(p_dist, opt$n_perm), ")"), xlab = "Distancia Nula", col = "gray90",
+hist(null_dist, main = paste0("Distancia Media (", texto_p(p_dist, opt$n_perm), ")"), xlab = "Distancia Nula", ylab = "Frecuencia", col = "#56B4E9", border = "white",
      xlim = range(c(null_dist, obs_dist)))
-abline(v = obs_dist, col = "red", lwd = 2)
+box(bty = "l")
+abline(v = obs_dist, col = "#0072B2", lwd = 2)
 
-hist(null_mod, main = paste0("Modularidad (", texto_p(p_mod, opt$n_perm), ")"), xlab = "Modularidad Nula", col = "gray90",
+hist(null_mod, main = paste0("Modularidad (", texto_p(p_mod, opt$n_perm), ")"), xlab = "Modularidad Nula", ylab = "Frecuencia", col = "#56B4E9", border = "white",
      xlim = range(c(null_mod, obs_mod)))
-abline(v = obs_mod, col = "red", lwd = 2)
+box(bty = "l")
+abline(v = obs_mod, col = "#0072B2", lwd = 2)
 invisible(dev.off())
 
 # Y preservando secuencia de grados (rewire)
@@ -236,13 +240,14 @@ if (!is.null(seed_genes)) {
     write.table(res_disease_module,
       file = file.path(opt$output, "disease_module_test.tsv"), sep = "\t", row.names = FALSE, quote = FALSE)
 
-    pdf(file.path(opt$output, "disease_module_test.pdf"))
-    hist(null_seed_lcc,
-      main = paste0("Disease Module Test (", texto_p(p_val_disease_module, opt$n_perm), ")"),
-      xlab = "LCC aleatoria", col = "gray90",
-      xlim = range(c(null_seed_lcc, obs_seed_lcc)))
+    pdf(file.path(opt$output, "disease_module_test.pdf"), pointsize = 12)
+    hist(null_seed_lcc, main = "",
+      xlab = "LCC aleatoria", ylab = "Frecuencia", col = "#56B4E9", border = "white",
+      xlim = c(0, max(c(null_seed_lcc, obs_seed_lcc))))
+    box(bty = "l")
 
-    abline(v = obs_seed_lcc, col = "red", lwd = 2)
+    abline(v = obs_seed_lcc, col = "#0072B2", lwd = 2)
+    text(obs_seed_lcc, par("usr")[4] * 0.95, texto_p(p_val_disease_module, opt$n_perm), pos = 2, col = "#0072B2")
     invisible(dev.off())
   }
 }
@@ -294,13 +299,12 @@ frac_random <- simular_robustez_random_promedio(g, n_sim = 100)
 # el primer punto es con 0 nodos quitados y el último con n-1
 x_robustez <- (seq_along(frac_hubs) - 1) / length(frac_hubs)
 
-pdf(file.path(opt$output, "robustez_red.pdf"), width = 6, height = 5)
-plot(x_robustez, frac_hubs, type = "l", col = "red", lwd = 2,
-     xlab = "Proporción de nodos retirados", ylab = "Fracción Componente Mayor",
-     main = "Análisis de Robustez")
-lines(x_robustez, frac_random, col = "blue", lwd = 2, lty = 2)
+pdf(file.path(opt$output, "robustez_red.pdf"), width = 6, height = 5, pointsize = 12)
+plot(x_robustez, frac_hubs, type = "l", col = "#0072B2", lwd = 2,
+     xlab = "Proporción de nodos retirados", ylab = "Fracción Componente Mayor")
+lines(x_robustez, frac_random, col = "#56B4E9", lwd = 2, lty = 2)
 legend("topright", legend = c("Ataque a Hubs", "Remoción Aleatoria"),
-       col = c("red", "blue"), lty = c(1, 2), lwd = 2)
+       col = c("#0072B2", "#56B4E9"), lty = c(1, 2), lwd = 2)
 invisible(dev.off())
 
 cat("Script 03_topologia.R completado con éxito.\n")
