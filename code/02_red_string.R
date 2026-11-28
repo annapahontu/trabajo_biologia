@@ -172,14 +172,13 @@ for (umbral in umbrales){
 
     if (gorder(g_umbral) > 0){
         pdf(file.path(carpeta_umbral, paste0("red_umbral_", umbral, ".pdf")),
-            width = 8, height = 8)
+            width = 8, height = 8, pointsize = 12)
         set.seed(semilla)
         layout <- layout_with_fr(g_umbral)
        
-        plot(g_umbral, layout = layout, vertex.color = "skyblue", edge.color = "deepskyblue",
+        plot(g_umbral, layout = layout, vertex.color = "#56B4E9", edge.color = "grey70",
              vertex.label.color = "black",
-            vertex.label.cex = 0.7, vertex.size = 5,
-             main = paste("Red STRING (umbral", umbral, ")"))
+            vertex.label.cex = 0.7, vertex.size = 5)
         dev.off()
     } else {
         cat("No se puede generar la figura de la red STRING para el umbral", umbral, "ya que no hay nodos en la red.\n")
