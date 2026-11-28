@@ -23,7 +23,7 @@ RES="$RAIZ/results"
 cd "$CODE_DIR"
 
 if [ ! -d "$RAIZ/software/deps_R" ]; then
-    echo "ERROR: no están instaladas las dependencias. Ejecuta primero ./setup.sh"
+    echo "ERROR: no están instaladas las dependencias. Ejecuta primero bash code/setup.sh"
     exit 1
 fi
 

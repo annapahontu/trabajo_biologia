@@ -32,14 +32,17 @@ if [ "$(printf '%s\n' "4.5.0" "$version_r" | sort -V | head -n 1)" != "4.5.0" ];
 fi
 
 # 3. Avisar si faltan librerías del sistema para compilar paquetes de R
-# Solo hacen falta si algún paquete precompilado no carga y hay que compilarlo
+# Solo hacen falta si algún paquete precompilado no carga y hay que compilarlo.
+# Los nombres son los de Ubuntu y Debian, así que solo se comprueba donde está dpkg
 librerias="build-essential gfortran libcurl4-openssl-dev libssl-dev libxml2-dev libglpk-dev libuv1-dev libfontconfig1-dev libfreetype-dev libharfbuzz-dev libfribidi-dev libpng-dev libjpeg-dev libtiff5-dev"
 faltan=""
-for lib in $librerias; do
-    if ! dpkg -s "$lib" > /dev/null 2>&1; then
-        faltan="$faltan $lib"
-    fi
-done
+if command -v dpkg > /dev/null; then
+    for lib in $librerias; do
+        if ! dpkg -s "$lib" > /dev/null 2>&1; then
+            faltan="$faltan $lib"
+        fi
+    done
+fi
 if [ -n "$faltan" ]; then
     echo ""
     echo "AVISO: faltan estas librerías del sistema:$faltan"
@@ -56,5 +59,5 @@ Rscript "$CODE_DIR/instalar_paquetes.R" "$LIB_R"
 
 echo ""
 echo "=============================================="
-echo " Instalación terminada. Ejecuta ./launch.sh"
+echo " Instalación terminada. Ejecuta bash code/launch.sh"
 echo "=============================================="
