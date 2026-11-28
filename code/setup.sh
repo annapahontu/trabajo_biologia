@@ -31,7 +31,8 @@ if [ "$(printf '%s\n' "4.5.0" "$version_r" | sort -V | head -n 1)" != "4.5.0" ];
     echo ""
 fi
 
-# 3. Avisar si faltan librerías del sistema que necesitan los paquetes de R para compilar
+# 3. Avisar si faltan librerías del sistema para compilar paquetes de R
+# Solo hacen falta si algún paquete precompilado no carga y hay que compilarlo
 librerias="build-essential gfortran libcurl4-openssl-dev libssl-dev libxml2-dev libglpk-dev libuv1-dev libfontconfig1-dev libfreetype-dev libharfbuzz-dev libfribidi-dev libpng-dev libjpeg-dev libtiff5-dev"
 faltan=""
 for lib in $librerias; do
@@ -42,7 +43,8 @@ done
 if [ -n "$faltan" ]; then
     echo ""
     echo "AVISO: faltan estas librerías del sistema:$faltan"
-    echo "Instálalas (una sola vez) con:"
+    echo "Solo hacen falta si algún paquete precompilado no carga y hay que compilarlo."
+    echo "En ese caso, el administrador del equipo puede instalarlas con este comando"
     echo "  sudo apt install -y$faltan"
     echo ""
 fi
