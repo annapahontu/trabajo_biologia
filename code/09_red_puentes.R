@@ -71,13 +71,11 @@ cat("Red con puentes:", vcount(red), "nodos y", ecount(red), "aristas\n")
 write.csv2(as_data_frame(red, what = "edges")[, c("from", "to", "combined_score")],
            file.path(opt$output, "aristas.csv"), row.names = FALSE)
 
-# 5. Figura con las semillas en naranja y los puentes en azul
 es_puente <- V(red)$name %in% puentes$gen
 set.seed(123)
-pdf(file.path(opt$output, "red_puentes.pdf"), width = 8, height = 8)
+pdf(file.path(opt$output, "red_puentes.pdf"), width = 8, height = 8, pointsize = 12)
 plot(red, layout = layout_with_fr(red),
-     vertex.color = ifelse(es_puente, "steelblue", "orange"),
+     vertex.color = ifelse(es_puente, "#0072B2", "#56B4E9"),
      vertex.size = 5, vertex.label = ifelse(es_puente, V(red)$name, NA),
-     vertex.label.cex = 0.7, edge.width = 0.5,
-     main = paste("Semillas y genes puente (umbral", opt$umbral, ")"))
+     vertex.label.cex = 0.7, edge.width = 0.5, edge.color = "grey70")
 invisible(dev.off())
