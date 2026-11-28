@@ -189,21 +189,21 @@ cat("\nResumen:\n")
 print(comparacion)
 
 # 6. Figura principal
-pdf(file.path(opt$output,"comparacion_puentes.pdf"), width = 10, height = 8)
+pdf(file.path(opt$output,"comparacion_puentes.pdf"), width = 10, height = 8, pointsize = 12)
 par(mfrow = c(2, 2))
-plot(comparacion$puentes, comparacion$semillas_conectadas, type = "b", pch = 19, col = "steelblue", 
+plot(comparacion$puentes, comparacion$semillas_conectadas, type = "b", pch = 19, col = "#0072B2", 
     xlab = "Genes puente", ylab = "Semillas conectadas", main = "Conectividad")
 max_clusters <- max(comparacion$clusters) + 1
-plot(comparacion$puentes, comparacion$clusters, type = "b", pch = 19, col = "darkgreen",
+plot(comparacion$puentes, comparacion$clusters, type = "b", pch = 19, col = "#0072B2",
     xlab = "Genes puente", ylab = "Clusters", main = "Número de clusters",
     ylim = c(0, max_clusters), yaxt = "n")
 axis(2, at = 0:max_clusters)
-plot(comparacion$puentes, comparacion$modularidad, type = "b", pch = 19, col = "darkred",
+plot(comparacion$puentes, comparacion$modularidad, type = "b", pch = 19, col = "#0072B2",
     xlab = "Genes puente", ylab = "Modularidad", main = "Modularidad")
 # el tope del eje son los clusters que tenían genes suficientes para el ORA
 max_ora <- max(comparacion$clusters_analizables, na.rm = TRUE) + 1
 plot(comparacion$puentes, comparacion$clusters_con_ORA, type = "b", pch = 19,
-    col = "purple", xlab = "Genes puente", ylab = "Clusters con ORA", main = "Enriquecimiento funcional",
+    col = "#0072B2", xlab = "Genes puente", ylab = "Clusters con ORA", main = "Enriquecimiento funcional",
     ylim = c(0, max_ora), yaxt = "n")
 axis(2, at = 0:max_ora)
 
@@ -226,11 +226,16 @@ for(n_red in n_puentes){
     puentes <- read.delim(file.path(carpeta_red, "genes_puente.tsv"), stringsAsFactors = FALSE)$gen
 
     cluster_nodo <- part$cluster[match(V(g)$name, part$gene)]
-    colores <- rainbow(length(unique(cluster_nodo)), s = 0.6)
+    # un color por cluster (paletas Okabe-Ito y Paul Tol, sin rojos ni naranjas); si hay más clusters que colores, se interpolan
+    colores <- c("#0072B2", "#009E73", "#CC79A7", "#56B4E9", "#F0E442", "#332288",
+                  "#44AA99", "#999933", "#AA4499", "#88CCEE", "#117733", "#999999")
+    n_cl <- length(unique(cluster_nodo))
+    if (n_cl > length(colores)) colores <- colorRampPalette(colores)(n_cl)
+    colores <- colores[seq_len(n_cl)]
     es_puente <- V(g)$name %in% puentes
 
     set.seed(123)
-    pdf(file.path(opt$output, paste0("red_puentes_clusters_n_", n_red, ".pdf")), width = 9, height = 9)
+    pdf(file.path(opt$output, paste0("red_puentes_clusters_n_", n_red, ".pdf")), width = 9, height = 9, pointsize = 12)
     
     plot(g, layout = layout_with_fr(g),
          vertex.color = colores[as.integer(as.factor(cluster_nodo))],
@@ -242,8 +247,7 @@ for(n_red in n_puentes){
          vertex.label.font = ifelse(es_puente, 2, 1),
          vertex.label.color = ifelse(es_puente, "black", "grey30"),
          vertex.label.dist = 1,
-         edge.width = 0.5, edge.color = "grey70",
-         main = paste("Clusters de la red con", n_red, "genes puente (umbral", opt$umbral, ")"))
+         edge.width = 0.5, edge.color = "grey70")
     legend("bottomleft", legend = c(paste("Cluster", sort(unique(cluster_nodo))), "Gen puente"),
            pch = c(rep(21, length(colores)), 22), pt.bg = c(colores, "white"),
            pt.cex = 1.5, bty = "n", cex = 0.8)
