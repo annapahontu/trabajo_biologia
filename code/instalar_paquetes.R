@@ -13,24 +13,41 @@ if (requireNamespace("bspm", quietly = TRUE)) {
 }
 
 # Repositorios
-# En Ubuntu, los paquetes de CRAN se descargan ya compilados de Posit Package Manager,
-# así no hay que compilarlos ni instalar con sudo las librerías que necesita la compilación
+# En Ubuntu, Debian y sus derivadas, los paquetes de CRAN se descargan ya compilados de
+# Posit Package Manager, así no hay que instalar con sudo las librerías para compilarlos
 repo_fuente <- "https://cloud.r-project.org"
-codename <- ""
-if (file.exists("/etc/os-release")) {
-  linea <- grep("^VERSION_CODENAME=", readLines("/etc/os-release"), value = TRUE)
-  if (length(linea) == 1) codename <- gsub('"', "", sub("^VERSION_CODENAME=", "", linea))
+
+# campo de /etc/os-release, o "" si no está
+campo_os <- function(lineas, campo) {
+  linea <- grep(paste0("^", campo, "="), lineas, value = TRUE)
+  if (length(linea) == 1) gsub('"', "", sub(paste0("^", campo, "="), "", linea)) else ""
 }
 
+codename <- ""
+if (file.exists("/etc/os-release")) {
+  os <- readLines("/etc/os-release")
+  # las distribuciones basadas en Ubuntu (Mint, Pop!_OS...) indican aquí el Ubuntu del que vienen
+  codename <- campo_os(os, "UBUNTU_CODENAME")
+  if (!nzchar(codename) && campo_os(os, "ID") %in% c("ubuntu", "debian")) {
+    codename <- campo_os(os, "VERSION_CODENAME")
+  }
+}
+
+repo_cran <- repo_fuente
 if (nzchar(codename)) {
-  repo_cran <- paste0("https://packagemanager.posit.co/cran/__linux__/", codename, "/latest")
+  repo_posit <- paste0("https://packagemanager.posit.co/cran/__linux__/", codename, "/latest")
   # Posit solo da los paquetes compilados si sabe la versión de R y el sistema
   options(HTTPUserAgent = sprintf("R/%s R (%s)", getRversion(),
                                   paste(getRversion(), R.version["platform"], R.version["arch"], R.version["os"])))
-  cat("Paquetes de CRAN precompilados para Ubuntu", codename, "desde Posit Package Manager\n")
+  # comprobamos que Posit tiene paquetes para este sistema antes de usarlo
+  disponibles <- tryCatch(available.packages(repos = repo_posit), error = function(e) NULL)
+  if (!is.null(disponibles) && nrow(disponibles) > 0) repo_cran <- repo_posit
+}
+
+if (repo_cran != repo_fuente) {
+  cat("Paquetes de CRAN precompilados para", codename, "desde Posit Package Manager\n")
 } else {
-  repo_cran <- repo_fuente
-  cat("No se reconoce la distribución, los paquetes de CRAN se compilarán desde el código fuente\n")
+  cat("No hay paquetes precompilados para este sistema, los de CRAN se compilarán desde el código fuente\n")
 }
 options(repos = c(CRAN = repo_cran), Ncpus = 2)
 
