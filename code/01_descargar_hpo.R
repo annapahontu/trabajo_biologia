@@ -117,6 +117,55 @@ if (length(solo_g2p) == 0) solo_g2p <- "ninguno"
 cat("  Solo en la API (vienen de términos hijos):", solo_api, "\n")
 cat("  Solo en genes_to_phenotype:", solo_g2p, "\n")
 
+# 3b. Evidencia de cada gen
+# HPO indica con qué frecuencia aparece el fenotipo en cada enfermedad, con una
+# categoría (HP:0040280 a HP:0040284) o con una fracción de pacientes (por ejemplo 1/13).
+# Para cada gen nos quedamos con la frecuencia más alta entre sus enfermedades
+categorias <- c("HP:0040280" = "Obligatoria", "HP:0040281" = "Muy frecuente",
+                "HP:0040282" = "Frecuente", "HP:0040283" = "Ocasional",
+                "HP:0040284" = "Muy rara")
+orden <- c("Obligatoria", "Muy frecuente", "Frecuente", "Ocasional", "Muy rara",
+           "Pocos casos", "Sin dato", "Sin anotación directa")
+
+# Las fracciones se pasan a la categoría de HPO que les corresponde por porcentaje,
+# salvo las de menos de 5 pacientes (1/1, 1/2...), que son casos sueltos
+a_categoria <- function(frecuencia) {
+  if (frecuencia %in% names(categorias)) return(categorias[[frecuencia]])
+  if (grepl("^[0-9]+/[0-9]+$", frecuencia)) {
+    partes <- as.numeric(strsplit(frecuencia, "/")[[1]])
+    if (partes[2] < 5) return("Pocos casos")
+    porcentaje <- 100 * partes[1] / partes[2]
+    if (porcentaje == 100) return("Obligatoria")
+    if (porcentaje >= 80) return("Muy frecuente")
+    if (porcentaje >= 30) return("Frecuente")
+    if (porcentaje >= 5) return("Ocasional")
+    return("Muy rara")
+  }
+  "Sin dato"
+}
+anotaciones$categoria <- sapply(anotaciones$frequency, a_categoria)
+
+evidencia <- data.frame(gene_symbol = genes$gene_symbol)
+evidencia$n_enfermedades <- sapply(evidencia$gene_symbol, function(gen) {
+  length(unique(anotaciones$disease_id[anotaciones$gene_symbol == gen]))
+})
+evidencia$frecuencias <- sapply(evidencia$gene_symbol, function(gen) {
+  frec <- unique(anotaciones$frequency[anotaciones$gene_symbol == gen])
+  if (length(frec) == 0) return("-")
+  paste(frec, collapse = ",")
+})
+# los genes que solo vienen de términos hijos no tienen anotación directa
+evidencia$categoria <- sapply(evidencia$gene_symbol, function(gen) {
+  cat_gen <- anotaciones$categoria[anotaciones$gene_symbol == gen]
+  if (length(cat_gen) == 0) return("Sin anotación directa")
+  orden[min(match(cat_gen, orden))]
+})
+
+write.table(evidencia, file.path(opt$output, "hpo_evidencia_genes.tsv"),
+            sep = "\t", quote = FALSE, row.names = FALSE)
+
+cat("\nEvidencia de los genes del término (frecuencia más alta de cada gen):\n")
+print(table(factor(evidencia$categoria, levels = orden)))
 
 # 4. Resumen de la descarga
 resumen <- c(
