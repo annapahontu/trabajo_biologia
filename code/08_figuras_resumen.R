@@ -56,20 +56,21 @@ print(embudo)
 
 write.table(data.frame(paso = names(embudo), genes = embudo), file.path(opt$output, "embudo_genes.tsv"), sep = "\t", row.names = FALSE, quote = FALSE)
 
-pdf(file.path(opt$output, "embudo_genes.pdf"), width = 8, height = 4)
+pdf(file.path(opt$output, "embudo_genes.pdf"), width = 8, height = 4, pointsize = 12)
 par(mar = c(4, 14, 3, 2)) # margen izquierdo amplio para los nombres de los pasos
-posiciones<- barplot(rev(embudo), horiz = TRUE, las = 1, col = "lightblue", xlim = c(0, max(embudo) * 1.15), xlab = "Número de genes", main = "Genes del fenotipo en cada paso del análisis")
+posiciones<- barplot(rev(embudo), horiz = TRUE, las = 1, col = "#56B4E9", border = "white", xlim = c(0, max(embudo) * 1.15), xlab = "Número de genes")
+box(bty = "l") # para que los ejes cubran toda la figura
 text(rev(embudo), posiciones, labels = rev(embudo), pos = 4)
 invisible(dev.off())
 
 # 5. Figura 2: sensibilidad al umbral de STRING
 # Cómo cambia la red al exigir más confianza a las interacciones
-pdf(file.path(opt$output, "sensibilidad_umbral.pdf"), width = 10, height = 3.5)
+pdf(file.path(opt$output, "sensibilidad_umbral.pdf"), width = 10, height = 3.5, pointsize = 12)
 par(mfrow = c(1, 3)) # tres gráficos en una fila
 
 columnas<- c(nodos_red = "Genes en la red", aristas_red = "Interacciones", componentes = "Componentes")
 for (col in names(columnas)) {
-    plot(sensibilidad$umbral, sensibilidad[[col]], type = "b", pch = 19, col = "darkblue", xaxt = "n", xlab = "Umbral de STRING", ylab = columnas[col], main = columnas[col], xlim = c(300, 1000), ylim = c(0, max(sensibilidad[[col]]) * 1.15))
+    plot(sensibilidad$umbral, sensibilidad[[col]], type = "b", pch = 19, col = "#0072B2", xaxt = "n", xlab = "Umbral de STRING", ylab = columnas[col], main = columnas[col], xlim = c(300, 1000), ylim = c(0, max(sensibilidad[[col]]) * 1.15))
     axis(1, at = sensibilidad$umbral)
     text(sensibilidad$umbral, sensibilidad[[col]], sensibilidad[[col]], pos = 3)
 }
@@ -90,19 +91,19 @@ for (u in umbrales) {
 
 # 6. Figura 3: grado frente a betweenness en cada umbral
 # Los genes puente tienen betweenness alta: muchos caminos más cortos pasan por ellos
-pdf(file.path(opt$output, "grado_betweenness.pdf"), width = 5 * length(umbrales), height = 5)
+pdf(file.path(opt$output, "grado_betweenness.pdf"), width = 5 * length(umbrales), height = 5, pointsize = 12)
 par(mfrow = c(1, length(umbrales)))
 
 puentes<- data.frame()
 for (u in umbrales) {
     m<- metricas[[as.character(u)]]
-    plot(m$grado, m$betweenness, pch = 19, col = "lightblue", xlab = "Grado", ylab = "Betweenness", main = paste0("Umbral ", u, " (", nrow(m), " genes)"), xlim = c(0, max(m$grado) * 1.15), ylim = c(0, max(m$betweenness) * 1.2)) # xlim e ylim son para dejar margenes
+    plot(m$grado, m$betweenness, pch = 19, col = "#56B4E9", xlab = "Grado", ylab = "Betweenness", main = paste0("Umbral ", u, " (", nrow(m), " genes)"), xlim = c(0, max(m$grado) * 1.15), ylim = c(0, max(m$betweenness) * 1.2)) # xlim e ylim son para dejar margenes
 
 # Etiquetamos los genes con mayor betweenness (solo si es mayor que 0)
     top<- head(m[order(m$betweenness, decreasing = TRUE), ], opt$n_etiquetas)
     top<- top[top$betweenness > 0, ]
     if (nrow(top) > 0) {
-        points(top$grado, top$betweenness, pch = 19, col = "darkred")
+        points(top$grado, top$betweenness, pch = 19, col = "#0072B2")
 # Si varios genes caen en el mismo punto, juntamos sus nombres en una sola etiqueta
         etiquetas<- aggregate(gene ~ grado + betweenness, data = top, FUN = function(x) paste(x, collapse = "\n"))
         text(etiquetas$grado, etiquetas$betweenness, etiquetas$gene, pos = rep(c(3, 1), length.out = nrow(etiquetas)), cex = 0.7)
