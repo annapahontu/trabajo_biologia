@@ -115,10 +115,10 @@ print(table(caminos$distancia))
 # 7. Heatmap de las distancias (las parejas sin camino quedan en blanco)
 d_figura <- dist_grupos
 d_figura[is.infinite(d_figura)] <- NA
-pdf(file.path(opt$output, "distancias_grupos.pdf"), width = 10, height = 9)
+pdf(file.path(opt$output, "distancias_grupos.pdf"), width = 10, height = 9, pointsize = 12)
 par(mar = c(9, 9, 3, 2))
-image(1:n, 1:n, d_figura, col = hcl.colors(10, "YlOrRd", rev = TRUE), axes = FALSE, xlab = "", ylab = "",
-      main = paste("Distancia en STRING entre grupos (umbral", opt$umbral, ")"))
+
+image(1:n, 1:n, d_figura, col = colorRampPalette(c("#0072B2", "#D6EBF7"))(10), axes = FALSE, xlab = "", ylab = "")
 axis(1, at = 1:n, labels = grupos, las = 2, cex.axis = 0.6)
 axis(2, at = 1:n, labels = grupos, las = 2, cex.axis = 0.6)
 # el número de la distancia dentro de cada casilla
